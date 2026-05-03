@@ -717,20 +717,56 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <!-- MODAL Editar factura -->
 <div class="modal-ov" id="modal-fact-edit">
-  <div class="modal" style="max-width:400px">
-    <div class="modal-hdr"><h3>Editar estado de cobro</h3><button class="modal-x" onclick="closeM('modal-fact-edit')">×</button></div>
+  <div class="modal" style="max-width:460px">
+    <div class="modal-hdr"><h3>Editar factura</h3><button class="modal-x" onclick="closeM('modal-fact-edit')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="mfe-id">
+      <input type="hidden" id="mfe-emision">
+
+      <!-- Cliente + fecha emisión (solo lectura) -->
       <div class="fg"><label>Cliente</label><input type="text" id="mfe-cli" readonly style="background:var(--gray-50)"></div>
-      <div class="fg"><label>Estado</label>
-        <select id="mfe-est"><option value="PENDIENTE">Pendiente</option><option value="COBRADO">Cobrado</option><option value="INCOBRABLE">Incobrable</option><option value="SALDO A FAVOR">Saldo a favor</option></select>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="fg"><label>Fecha de emisión</label><input type="text" id="mfe-emision-lbl" readonly style="background:var(--gray-50)"></div>
+        <div class="fg"><label>Número</label><input type="text" id="mfe-num" readonly style="background:var(--gray-50)"></div>
       </div>
-      <div class="fg"><label>Fecha cobro acordada</label><input type="date" id="mfe-fecha"></div>
-      <div class="fg"><label>Semana cash flow override</label><input type="text" id="mfe-sem" placeholder="ej: 20_2026"></div>
+
+      <div style="height:1px;background:var(--gray-200);margin:12px 0"></div>
+
+      <!-- Días y cobro estimado — editables y sincronizados -->
+      <div style="background:var(--blue-light,#eff6ff);border-radius:var(--r-sm);padding:14px;margin-bottom:12px;border:1px solid #bfdbfe">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:10px">⚡ Plazo y fecha estimada de cobro</div>
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:end">
+          <div class="fg" style="margin:0">
+            <label>Días para cobro</label>
+            <input type="number" id="mfe-dias" min="0" max="365" style="margin-top:4px"
+              oninput="mfeSyncDias(this.value)">
+          </div>
+          <div class="fg" style="margin:0">
+            <label>Fecha estimada de cobro</label>
+            <input type="date" id="mfe-fecha-estimada" style="margin-top:4px"
+              onchange="mfeSyncFecha(this.value)">
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--blue)">
+          💡 Cambiá los días <em>o</em> la fecha — el otro campo se actualiza solo.
+          La semana de impacto en el flujo se recalcula automáticamente.
+        </div>
+        <div id="mfe-sem-preview" style="margin-top:8px;font-size:12px;font-weight:700;color:var(--blue)"></div>
+      </div>
+
+      <!-- Estado -->
+      <div class="fg"><label>Estado de cobro</label>
+        <select id="mfe-est">
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="COBRADO">Cobrado</option>
+          <option value="INCOBRABLE">Incobrable</option>
+          <option value="SALDO A FAVOR">Saldo a favor</option>
+        </select>
+      </div>
     </div>
     <div class="modal-ftr">
       <button class="btn btn-secondary" onclick="closeM('modal-fact-edit')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveFactEdit()">Guardar (local)</button>
+      <button class="btn btn-primary" onclick="saveFactEdit()">💾 Guardar</button>
     </div>
   </div>
 </div>
@@ -902,12 +938,9 @@ function parseDateStr(s) {
 }
 
 function cobroEstimado(f) {
-  // Primero usar semana cash flow de Sheets si existe
-  if(f.semCashFlow) {
-    try { return weekStart(f.semCashFlow); } catch(e){}
-  }
   if(f.fechaCobroAcordada) return f.fechaCobroAcordada;
-  if(f.fechaEmision) return addDays(f.fechaEmision, 37);
+  if(f.semCashFlow) { try { return weekStart(f.semCashFlow); } catch(e){} }
+  if(f.fechaEmision) return addDays(f.fechaEmision, f.diasCobro !== undefined ? f.diasCobro : 37);
   return null;
 }
 
@@ -2150,45 +2183,100 @@ function renderFact(){
   if(list.length>500) body.innerHTML+=`<tr><td colspan="9" style="text-align:center;font-size:12px;color:var(--gray-500);padding:12px">Mostrando 500 de ${list.length} registros. Usá los filtros para acotar.</td></tr>`;
 }
 
+// ── Helpers de sincronización días ↔ fecha en el modal ──────────────────
+function mfeSyncDias(dias) {
+  const emision = document.getElementById('mfe-emision').value;
+  if(!emision) return;
+  const base = new Date(emision+'T12:00:00');
+  if(isNaN(base)) return;
+  const nueva = addDays(base, parseInt(dias)||0);
+  document.getElementById('mfe-fecha-estimada').value = toISO(nueva);
+  mfeUpdateSemPreview(toISO(nueva));
+}
+function mfeSyncFecha(fechaStr) {
+  const emision = document.getElementById('mfe-emision').value;
+  if(!emision || !fechaStr) return;
+  const base  = new Date(emision+'T12:00:00');
+  const dest  = new Date(fechaStr+'T12:00:00');
+  if(!isNaN(base)&&!isNaN(dest)) {
+    document.getElementById('mfe-dias').value = Math.max(0, Math.round((dest-base)/86400000));
+  }
+  mfeUpdateSemPreview(fechaStr);
+}
+function mfeUpdateSemPreview(fechaStr) {
+  const el = document.getElementById('mfe-sem-preview');
+  if(!el || !fechaStr) return;
+  const d = new Date(fechaStr+'T12:00:00');
+  if(isNaN(d)) { el.innerHTML=''; return; }
+  const [wn,yr] = weekKey(d).split('_');
+  el.innerHTML = `📅 Impacta en flujo: <span class="badge b-blue">Semana ${wn} / ${yr}</span> · ${d.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}`;
+}
+
 function openFactEdit(id){
   if(!canWrite()) return;
-  const f=DATA.clientes.find(x=>x.id===id);if(!f)return;
+  const f=DATA.clientes.find(x=>x.id===id); if(!f) return;
   const edit=DATA.localEdits[id]||{};
-  document.getElementById('mfe-id').value=id;
-  document.getElementById('mfe-cli').value=f.cliente;
-  document.getElementById('mfe-est').value=edit.estadoCobranza||f.estadoCobranza;
-  document.getElementById('mfe-fecha').value=edit.fechaCobro||(f.fechaCobroAcordada?toISO(f.fechaCobroAcordada):'');
-  document.getElementById('mfe-sem').value=edit.semCashFlow||f.semCashFlow||'';
+
+  document.getElementById('mfe-id').value  = id;
+  document.getElementById('mfe-cli').value = f.cliente||'';
+  document.getElementById('mfe-num').value = f.numero||'';
+
+  const emisISO = f.fechaEmision ? toISO(f.fechaEmision) : '';
+  document.getElementById('mfe-emision').value     = emisISO;
+  document.getElementById('mfe-emision-lbl').value = emisISO
+    ? new Date(emisISO+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})
+    : '—';
+
+  // Fecha estimada actual
+  let fechaEstimada = edit.fechaCobro || (f.fechaCobroAcordada ? toISO(f.fechaCobroAcordada) : '');
+  if(!fechaEstimada && emisISO) {
+    const dias0 = edit.dias !== undefined ? edit.dias : (f.diasCobro !== undefined ? f.diasCobro : 37);
+    fechaEstimada = toISO(addDays(new Date(emisISO+'T12:00:00'), dias0));
+  }
+
+  // Días entre emisión y fecha estimada
+  let dias = 37;
+  if(emisISO && fechaEstimada) {
+    const diff = Math.round((new Date(fechaEstimada+'T12:00:00') - new Date(emisISO+'T12:00:00')) / 86400000);
+    if(diff >= 0) dias = diff;
+  }
+
+  document.getElementById('mfe-dias').value           = dias;
+  document.getElementById('mfe-fecha-estimada').value = fechaEstimada;
+  document.getElementById('mfe-est').value            = edit.estadoCobranza || f.estadoCobranza || 'PENDIENTE';
+
+  mfeUpdateSemPreview(fechaEstimada);
   document.getElementById('modal-fact-edit').classList.add('open');
 }
+
 function saveFactEdit(){
-  const id=document.getElementById('mfe-id').value;
-  const nuevaFechaCobro = document.getElementById('mfe-fecha').value;
-  const semOverride     = document.getElementById('mfe-sem').value.trim();
-  const nuevoEstado     = document.getElementById('mfe-est').value;
+  const id          = document.getElementById('mfe-id').value;
+  const nuevaFecha  = document.getElementById('mfe-fecha-estimada').value;
+  const dias        = parseInt(document.getElementById('mfe-dias').value)||37;
+  const nuevoEstado = document.getElementById('mfe-est').value;
 
-  DATA.localEdits[id]={
-    estadoCobranza: nuevoEstado,
-    fechaCobro:     nuevaFechaCobro,
-    semCashFlow:    semOverride,
-  };
+  let semCF = '';
+  if(nuevaFecha) {
+    const d = new Date(nuevaFecha+'T12:00:00');
+    if(!isNaN(d)) semCF = weekKey(d);
+  }
 
-  // Aplicar al objeto en memoria
-  const f=DATA.clientes.find(x=>x.id===id);
+  DATA.localEdits[id] = { estadoCobranza:nuevoEstado, fechaCobro:nuevaFecha, semCashFlow:semCF, dias };
+
+  const f = DATA.clientes.find(x=>x.id===id);
   if(f){
-    if(nuevoEstado)    f.estadoCobranza=nuevoEstado;
-    if(nuevaFechaCobro){
-      const dCobro = new Date(nuevaFechaCobro+'T12:00:00');
-      f.fechaCobroAcordada = dCobro;
-      // Recalcular semCashFlow si no hay override manual
-      if(!semOverride) f.semCashFlow = weekKey(dCobro);
+    if(nuevoEstado)  f.estadoCobranza = nuevoEstado;
+    f.diasCobro = dias;
+    if(nuevaFecha){
+      f.fechaCobroAcordada = new Date(nuevaFecha+'T12:00:00');
+      f.semCashFlow = semCF;
     }
-    if(semOverride)    f.semCashFlow=semOverride;
   }
   closeM('modal-fact-edit');
   renderFact();
-  renderInicio(); // actualizar flujo proyectado
+  renderInicio();
 }
+
 
 // ══════════════════════════════════════════════════════
 //  CHEQUES
