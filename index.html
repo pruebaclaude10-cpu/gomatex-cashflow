@@ -359,7 +359,7 @@ tbody tr:hover{background:var(--gray-50)}
       <div class="section-hdr">
         <h2>Cheques</h2>
         <div class="section-hdr-actions" id="cheq-hdr-actions">
-          <button class="btn btn-primary btn-sm" id="btn-nuevo-cheque" onclick="openChequeModal()">➕ Nuevo cheque recibido</button>
+          <span class="badge b-blue" style="font-size:11px">📊 Solo lectura — datos desde Google Sheets</span>
           <button class="btn btn-secondary btn-sm" onclick="syncAll()">🔄 Actualizar</button>
         </div>
       </div>
@@ -763,6 +763,24 @@ document.addEventListener('DOMContentLoaded', function(){
           <option value="SALDO A FAVOR">Saldo a favor</option>
         </select>
       </div>
+
+      <!-- Importe ajustado -->
+      <div style="background:#f0fdf4;border-radius:var(--r-sm);padding:14px;border:1px solid #86efac;margin-top:4px">
+        <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:8px">💰 Importe a cobrar</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end">
+          <div class="fg" style="margin:0">
+            <label style="font-size:11px;color:var(--gray-500)">IMPORTE ORIGINAL</label>
+            <input type="text" id="mfe-monto-orig" readonly style="margin-top:4px;background:var(--gray-50)">
+          </div>
+          <div class="fg" style="margin:0">
+            <label style="font-size:11px;color:var(--gray-500);font-weight:700">IMPORTE AJUSTADO (editable)</label>
+            <input type="number" id="mfe-monto-ajustado" placeholder="Dejar vacío = usar original" min="0" step="0.01" style="margin-top:4px;border-color:#86efac">
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:#166534">
+          💡 Modificá si hubo intereses, ajustes o pagos parciales. Se usará en el flujo proyectado.
+        </div>
+      </div>
     </div>
     <div class="modal-ftr">
       <button class="btn btn-secondary" onclick="closeM('modal-fact-edit')">Cancelar</button>
@@ -935,6 +953,11 @@ function parseDateStr(s) {
     const d=new Date(Date.UTC(1899,11,30)+(n*86400000)); d.setUTCHours(12); return d;
   }
   return null;
+}
+
+// Monto efectivo de una factura: usa montoAjustado si fue editado, sino monto original
+function montoEfectivo(f) {
+  return (f.montoAjustado !== undefined && f.montoAjustado > 0) ? f.montoAjustado : (f.monto||0);
 }
 
 function cobroEstimado(f) {
@@ -2020,7 +2043,7 @@ function renderInicio(){
     if(!fc) return false;
     return fc>=rangeStart&&fc<=rangeEnd;
   });
-  const montoFc = fcPeriod.reduce((a,f)=>a+f.monto,0);
+  const montoFc = fcPeriod.reduce((a,f)=>a+montoEfectivo(f),0);
 
   // Cheques recibidos en período — excluir los ya entregados a terceros (entregadoA + fechaEntrega)
   const cheqR = DATA.cheques.filter(c => {
@@ -2174,7 +2197,9 @@ function renderFact(){
       <td>${fmtDate(f.fechaEmision)}</td>
       <td>${fmtDate(fc)}</td>
       <td><span class="badge b-blue">${f.semCashFlow||'-'}</span></td>
-      <td class="tr font-bold">${fmtM(f.monto)}</td>
+      <td class="tr font-bold">${f.montoAjustado!==undefined&&f.montoAjustado>0
+        ? `<span style="color:var(--orange)">${fmtM(f.montoAjustado)}</span><br><span style="font-size:10px;color:var(--gray-400);text-decoration:line-through">${fmtM(f.monto)}</span>`
+        : fmtM(f.monto)}</td>
       <td><span class="badge ${eMap[f.estadoCobranza]||'b-gray'}">${f.estadoCobranza}</span></td>
       <td>${diasStr}</td>
       <td>${edit}</td>
@@ -2245,6 +2270,10 @@ function openFactEdit(id){
   document.getElementById('mfe-fecha-estimada').value = fechaEstimada;
   document.getElementById('mfe-est').value            = edit.estadoCobranza || f.estadoCobranza || 'PENDIENTE';
 
+  // Importes
+  document.getElementById('mfe-monto-orig').value     = fmtM(f.monto||0);
+  document.getElementById('mfe-monto-ajustado').value = edit.montoAjustado !== undefined ? edit.montoAjustado : (f.montoAjustado||'');
+
   mfeUpdateSemPreview(fechaEstimada);
   document.getElementById('modal-fact-edit').classList.add('open');
 }
@@ -2254,6 +2283,8 @@ function saveFactEdit(){
   const nuevaFecha  = document.getElementById('mfe-fecha-estimada').value;
   const dias        = parseInt(document.getElementById('mfe-dias').value)||37;
   const nuevoEstado = document.getElementById('mfe-est').value;
+  const montoAjRaw  = document.getElementById('mfe-monto-ajustado').value;
+  const montoAjustado = montoAjRaw !== '' ? (parseFloat(montoAjRaw)||0) : undefined;
 
   let semCF = '';
   if(nuevaFecha) {
@@ -2261,12 +2292,13 @@ function saveFactEdit(){
     if(!isNaN(d)) semCF = weekKey(d);
   }
 
-  DATA.localEdits[id] = { estadoCobranza:nuevoEstado, fechaCobro:nuevaFecha, semCashFlow:semCF, dias };
+  DATA.localEdits[id] = { estadoCobranza:nuevoEstado, fechaCobro:nuevaFecha, semCashFlow:semCF, dias, montoAjustado };
 
   const f = DATA.clientes.find(x=>x.id===id);
   if(f){
-    if(nuevoEstado)  f.estadoCobranza = nuevoEstado;
+    if(nuevoEstado)             f.estadoCobranza  = nuevoEstado;
     f.diasCobro = dias;
+    if(montoAjustado !== undefined) f.montoAjustado = montoAjustado;
     if(nuevaFecha){
       f.fechaCobroAcordada = new Date(nuevaFecha+'T12:00:00');
       f.semCashFlow = semCF;
@@ -2290,16 +2322,8 @@ function switchCheqTab(tab, btn) {
   btn.classList.add('active');
   document.getElementById('cheq-recibidos-view').style.display = tab==='recibidos'?'block':'none';
   document.getElementById('cheq-emitidos-view').style.display  = tab==='emitidos'?'block':'none';
-  const btnNuevo = document.getElementById('btn-nuevo-cheque');
-  if(tab==='recibidos') {
-    btnNuevo.textContent='➕ Nuevo cheque recibido';
-    btnNuevo.setAttribute('onclick','openChequeModal()');
-    renderCheques();
-  } else {
-    btnNuevo.textContent='➕ Nuevo cheque emitido';
-    btnNuevo.setAttribute('onclick','openChequesEmitidoModal()');
-    renderChequesEmitidos();
-  }
+  if(tab==='recibidos') renderCheques();
+  else renderChequesEmitidos();
 }
 
 function renderChequesEmitidos() {
@@ -2324,10 +2348,7 @@ function renderChequesEmitidos() {
       <td class="font-mono"><strong>${c.numero||'-'}</strong></td>
       <td>${c.beneficiario||'-'}</td>
       <td class="tr font-bold text-red">${fmtM(c.importe)}</td>
-      <td><div class="row-acts">
-        <button class="btn btn-secondary btn-sm" onclick="editChequesEmitido('${c.id}')">✏️</button>
-        ${canDel()?`<button class="btn btn-danger btn-sm" onclick="deleteChequesEmitido('${c.id}')">🗑</button>`:''}
-      </div></td>
+      <td></td>
     </tr>`;
   }).join('')||`<tr><td colspan="6"><div class="empty-st"><div class="ico">💸</div><p>Sin cheques emitidos${q?' para "'+q+'"':''}</p></div></td></tr>`;
 }
@@ -2442,10 +2463,7 @@ function renderCheques(){
       <td style="font-size:12px;color:var(--gray-500)">${fmtDate(c.fechaEmision)}</td>
       <td>${fmtDate(c.fechaPago)}</td>
       <td class="tr font-bold text-g">${fmtM(c.monto)}</td>
-      <td><div class="row-acts">
-        <button class="btn btn-secondary btn-sm" onclick="editCheque('${c.id}')">✏️</button>
-        ${canDel()?`<button class="btn btn-danger btn-sm" onclick="deleteCheque('${c.id}')">🗑</button>`:''}
-      </div></td>
+      <td></td>
     </tr>`;
   }).join('')||`<tr><td colspan="9"><div class="empty-st"><div class="ico">📝</div><p>Sin cheques a cobrar${q?' para "'+q+'"':''}</p></div></td></tr>`;
 }
@@ -2694,7 +2712,7 @@ function getFlujoPeriod(start,end){
   // Cargas manuales mensuales (egresos del mes en su primera semana)
   const cargasPeriod = getCargasEgresosSemana(start, end);
 
-  const ing=fc.reduce((a,f)=>a+f.monto,0)+cheqIng.reduce((a,c)=>a+c.monto,0);
+  const ing=fc.reduce((a,f)=>a+montoEfectivo(f),0)+cheqIng.reduce((a,c)=>a+c.monto,0);
   const egr=cheqEmit.reduce((a,c)=>a+c.importe,0)+cuotas+sueldosPeriod+impuestosPeriod+cargasPeriod;
   return {ing,egr,fcCant:fc.length,sueldosPeriod,impuestosPeriod,cheqEmitTotal:cheqEmit.reduce((a,c)=>a+c.importe,0),cuotas,cargasPeriod};
 }
