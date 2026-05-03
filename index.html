@@ -1,0 +1,2915 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GOMATEX Cashflow</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --blue:#001C7D;--blue2:#0033CC;--blue-light:#E8EEFF;
+  --green:#00875A;--green-light:#E3FFF4;
+  --red:#D63031;--red-light:#FFF0F0;
+  --orange:#E67E22;--orange-light:#FFF4E5;
+  --yellow:#F39C12;--yellow-light:#FFFDE7;
+  --purple:#8E44AD;--purple-light:#F5E6FF;
+  --teal:#0097A7;--teal-light:#E0F7FA;
+  --gray-50:#F8FAFC;--gray-100:#F1F5F9;--gray-200:#E2E8F0;
+  --gray-300:#CBD5E1;--gray-500:#64748B;--gray-700:#334155;--gray-900:#0F172A;
+  --white:#FFF;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  --shadow-md:0 4px 24px rgba(0,0,0,.14);
+  --r:12px;--r-sm:8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Nunito Sans',sans-serif;background:var(--gray-50);color:var(--gray-900);min-height:100vh;font-size:14px;line-height:1.5;overflow-x:hidden}
+
+/* ── LOGIN ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,var(--blue) 0%,#0033CC 60%,#1a4fd4 100%)}
+.login-box{background:var(--white);border-radius:20px;padding:48px 40px;width:420px;box-shadow:0 24px 80px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo .brand{font-size:28px;font-weight:900;color:var(--blue);letter-spacing:-.5px}
+.login-logo .sub{font-size:11px;color:var(--gray-500);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:4px}
+.login-box h2{font-size:20px;font-weight:800;margin-bottom:24px}
+.login-err{background:var(--red-light);color:var(--red);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:16px;display:none}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:11px;font-weight:700;color:var(--gray-700);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.fg input,.fg select,.fg textarea{width:100%;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);font-family:inherit;font-size:13px;color:var(--gray-900);transition:border-color .2s,box-shadow .2s;background:var(--white)}
+.fg input:focus,.fg select:focus,.fg textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(0,28,125,.1)}
+.fg textarea{resize:vertical;min-height:60px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--r-sm);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:all .2s;white-space:nowrap}
+.btn-primary{background:var(--blue);color:var(--white)}.btn-primary:hover{background:var(--blue2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,28,125,.3)}
+.btn-success{background:var(--green);color:var(--white)}.btn-success:hover{background:#00A36C}
+.btn-danger{background:var(--red);color:var(--white)}.btn-danger:hover{background:#c0392b}
+.btn-secondary{background:var(--gray-100);color:var(--gray-700)}.btn-secondary:hover{background:var(--gray-200)}
+.btn-orange{background:var(--orange);color:var(--white)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-full{width:100%;justify-content:center;padding:12px;font-size:15px}
+
+/* ── APP ── */
+#app{display:none;min-height:100vh}
+.sidebar-trigger{position:fixed;top:0;left:0;width:14px;height:100vh;z-index:199;cursor:pointer}
+.sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--blue);display:flex;flex-direction:column;z-index:200;transform:translateX(-240px);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.sidebar.open{transform:translateX(0);box-shadow:4px 0 32px rgba(0,0,0,.3)}
+.sidebar-brand{padding:22px 20px 18px;border-bottom:1px solid rgba(255,255,255,.12)}
+.sidebar-brand .brand{font-size:20px;font-weight:900;color:var(--white);letter-spacing:-.5px}
+.sidebar-brand .sub{font-size:10px;color:rgba(255,255,255,.5);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.sidebar-nav{flex:1;padding:14px 10px;overflow-y:auto}
+.nav-lbl{font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;padding:8px 8px 4px;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;color:rgba(255,255,255,.7);cursor:pointer;transition:all .2s;font-weight:600;font-size:13px;margin-bottom:2px}
+.nav-item:hover{background:rgba(255,255,255,.1);color:var(--white)}
+.nav-item.active{background:rgba(255,255,255,.18);color:var(--white)}
+.nav-item .icon{font-size:15px;width:20px;text-align:center}
+.sidebar-footer{padding:14px 18px;border-top:1px solid rgba(255,255,255,.12)}
+.user-info{display:flex;align-items:center;gap:10px}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--white);font-size:13px;flex-shrink:0}
+.user-name{font-size:13px;font-weight:700;color:var(--white)}
+.user-role{font-size:11px;color:rgba(255,255,255,.5)}
+.logout-btn{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.5);font-size:16px;padding:4px;margin-left:auto}
+.logout-btn:hover{color:var(--white)}
+
+/* ── TOPBAR ── */
+.main-content{min-height:100vh}
+.topbar{background:var(--white);border-bottom:1px solid var(--gray-200);padding:0 24px 0 16px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar-left{display:flex;align-items:center;gap:10px}
+.sb-toggle{background:none;border:none;cursor:pointer;font-size:20px;padding:4px 8px;border-radius:6px;color:var(--gray-700);transition:all .2s}
+.sb-toggle:hover{background:var(--gray-100)}
+.topbar-title{font-size:17px;font-weight:800;color:var(--gray-900)}
+.topbar-right{display:flex;align-items:center;gap:8px}
+
+/* ── SYNC STATUS ── */
+.sync-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:inherit}
+.sync-ok{background:var(--green-light);color:var(--green)}
+.sync-loading{background:var(--yellow-light);color:#B7770D}
+.sync-err{background:var(--red-light);color:var(--red)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.spin{animation:spin .8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PAGES ── */
+.page{display:none;padding:24px}
+.page.active{display:block}
+.section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+.section-hdr h2{font-size:19px;font-weight:900}
+.section-hdr-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── CARDS ── */
+.card{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:18px}
+.card-hdr{padding:14px 18px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card-title{font-size:13px;font-weight:800;color:var(--gray-900)}
+
+/* ── KPIS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--white);border-radius:var(--r);padding:18px 16px;box-shadow:var(--shadow);border-left:4px solid var(--blue);transition:transform .2s}
+.kpi:hover{transform:translateY(-2px)}
+.kpi.g{border-left-color:var(--green)}.kpi.r{border-left-color:var(--red)}.kpi.o{border-left-color:var(--orange)}.kpi.p{border-left-color:var(--purple)}.kpi.t{border-left-color:var(--teal)}
+.kpi-lbl{font-size:10px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.kpi-val{font-size:20px;font-weight:900;line-height:1}
+.kpi-sub{font-size:11px;color:var(--gray-500);margin-top:4px}
+
+/* ── TABLES ── */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:9px 12px;font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.6px;background:var(--gray-50);border-bottom:1px solid var(--gray-200);white-space:nowrap;text-align:left}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--gray-100);color:var(--gray-700);font-size:13px}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:var(--gray-50)}
+.tr{text-align:right}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.b-blue{background:var(--blue-light);color:var(--blue)}
+.b-green{background:var(--green-light);color:var(--green)}
+.b-red{background:var(--red-light);color:var(--red)}
+.b-orange{background:var(--orange-light);color:var(--orange)}
+.b-yellow{background:var(--yellow-light);color:#B7770D}
+.b-purple{background:var(--purple-light);color:var(--purple)}
+.b-gray{background:var(--gray-100);color:var(--gray-500)}
+.b-teal{background:var(--teal-light);color:var(--teal)}
+
+/* ── ALERTS ── */
+.alert{border-radius:var(--r-sm);padding:11px 14px;margin-bottom:14px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.alert-danger{background:var(--red-light);color:var(--red);border:1px solid #FFCDD2}
+.alert-warning{background:var(--orange-light);color:var(--orange);border:1px solid #FFCC80}
+.alert-info{background:var(--blue-light);color:var(--blue);border:1px solid #BBDEFB}
+.alert-success{background:var(--green-light);color:var(--green);border:1px solid #A5D6A7}
+
+/* ── FILTERS ── */
+.filters{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--gray-100);background:var(--gray-50)}
+.filters select,.filters input{padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);font-family:inherit;font-size:12px;color:var(--gray-900);background:var(--white)}
+.filters select:focus,.filters input:focus{outline:none;border-color:var(--blue)}
+
+/* ── MODAL ── */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.modal-ov.open{display:flex}
+.modal{background:var(--white);border-radius:var(--r);width:100%;max-width:560px;box-shadow:var(--shadow-md);animation:slideUp .2s ease;margin:auto}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal-hdr{padding:18px 22px 14px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between}
+.modal-hdr h3{font-size:15px;font-weight:800}
+.modal-x{background:none;border:none;cursor:pointer;font-size:22px;color:var(--gray-500);line-height:1}
+.modal-x:hover{color:var(--gray-900)}
+.modal-body{padding:18px 22px}
+.modal-ftr{padding:14px 22px;border-top:1px solid var(--gray-100);display:flex;gap:8px;justify-content:flex-end}
+
+/* ── CASHFLOW TABLE ── */
+.week-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.week-nav select,.week-nav input[type=date]{padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);font-family:inherit;font-size:13px;font-weight:700;color:var(--gray-900);background:var(--white)}
+.week-nav select:focus,.week-nav input[type=date]:focus{outline:none;border-color:var(--blue)}
+.week-badge{background:var(--blue);color:var(--white);border-radius:var(--r-sm);padding:8px 16px;font-weight:800;font-size:14px}
+
+.cf-table{width:100%;border-collapse:collapse}
+.cf-table tr{border-bottom:1px solid var(--gray-100)}
+.cf-table tr:last-child{border-bottom:none}
+.cf-table td{padding:7px 14px;font-size:13px;color:var(--gray-700)}
+.cf-table td:last-child{text-align:right;font-weight:700;min-width:150px}
+.cf-section td{background:var(--blue)!important;color:var(--white)!important;font-weight:800!important;font-size:11px;text-transform:uppercase;letter-spacing:.6px;padding:6px 14px!important}
+.cf-sub td:first-child{padding-left:28px!important;color:var(--gray-500)!important;font-size:12px}
+.cf-total{background:var(--gray-50)}
+.cf-total td{font-weight:800!important;color:var(--gray-900)!important}
+.cf-pos{color:var(--green)!important;font-weight:900!important}
+.cf-neg{color:var(--red)!important;font-weight:900!important}
+.cf-highlight{background:var(--blue-light)!important}
+.cf-highlight td{color:var(--blue)!important}
+
+/* ── ACCOUNTS ── */
+.acc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px}
+.acc-card{background:var(--white);border-radius:var(--r);padding:16px 14px;box-shadow:var(--shadow);text-align:center;border-top:4px solid var(--blue);transition:all .2s}
+.acc-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.acc-card.galicia{border-top-color:#E51B24}
+.acc-card.chubut{border-top-color:#0052A5}
+.acc-card.mp{border-top-color:#00B1EA}
+.acc-card.fima{border-top-color:#FF6B35}
+.acc-card.plazo{border-top-color:var(--purple)}
+.acc-card.efectivo{border-top-color:var(--green)}
+.acc-icon{font-size:22px;margin-bottom:4px}
+.acc-name{font-size:10px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px}
+.acc-bal{font-size:17px;font-weight:900;color:var(--gray-900)}
+.acc-source{font-size:10px;color:var(--gray-300);margin-top:2px}
+
+/* ── FLUJO VIEW TABS ── */
+.view-tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab-btn{padding:7px 14px;border-radius:var(--r-sm);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;border:1.5px solid var(--gray-200);background:var(--white);color:var(--gray-700);transition:all .2s}
+.tab-btn.active{background:var(--blue);color:var(--white);border-color:var(--blue)}
+
+/* ── SHEETS INFO PANEL ── */
+.sheets-panel{background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px;border-left:4px solid var(--green)}
+.sheets-panel h3{font-size:14px;font-weight:800;margin-bottom:12px;color:var(--gray-900)}
+.sheets-tab-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
+.sheets-tab{background:var(--gray-50);border-radius:var(--r-sm);padding:10px 14px;border:1px solid var(--gray-200)}
+.sheets-tab-name{font-size:12px;font-weight:700;color:var(--gray-900)}
+.sheets-tab-desc{font-size:11px;color:var(--gray-500);margin-top:2px}
+.sheets-tab-count{font-size:11px;color:var(--green);font-weight:700;margin-top:4px}
+
+/* ── MISC ── */
+.row-acts{display:flex;gap:4px;align-items:center}
+.text-g{color:var(--green);font-weight:700}.text-red{color:var(--red);font-weight:700}
+.font-bold{font-weight:700}.font-mono{font-family:'Courier New',monospace;font-size:12px}
+.empty-st{text-align:center;padding:40px 24px;color:var(--gray-500)}
+.empty-st .ico{font-size:36px;margin-bottom:10px}
+.empty-st p{font-size:13px;font-weight:600}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--gray-100)}::-webkit-scrollbar-thumb{background:var(--gray-300);border-radius:3px}
+
+/* ── LOADING OVERLAY ── */
+.loading-ov{position:fixed;inset:0;background:rgba(0,28,125,.85);z-index:2000;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--white)}
+.loading-ov.hidden{display:none}
+.loading-logo{font-size:32px;font-weight:900;letter-spacing:-.5px;margin-bottom:8px}
+.loading-sub{font-size:13px;opacity:.7;margin-bottom:32px;font-weight:600}
+.loading-spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--white);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:16px}
+.loading-msg{font-size:13px;font-weight:600;opacity:.8}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOADING ═══ -->
+<div class="loading-ov hidden" id="loading-ov">
+  <div class="loading-logo">GOMATEX</div>
+  <div class="loading-sub">Cashflow Manager</div>
+  <div class="loading-spinner"></div>
+  <div class="loading-msg" id="loading-msg">Conectando con Google Sheets...</div>
+</div>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="brand">GOMATEX</div>
+      <div class="sub">Cashflow Manager</div>
+    </div>
+    <h2>Iniciar sesión</h2>
+    <div class="login-err" id="login-err">Usuario o contraseña incorrectos.</div>
+    <div class="fg"><label>Email</label><input type="email" id="inp-u" autocomplete="email" placeholder="usuario@gomatex.com"></div>
+    <div class="fg"><label>Contraseña</label><input type="password" id="inp-p" autocomplete="current-password" placeholder="••••••••"></div>
+    <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar</button>
+    <div style="text-align:center;margin-top:14px;font-size:11px;color:var(--gray-300)">
+      Los datos se sincronizan desde Google Sheets al ingresar
+    </div>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app">
+  <div class="sidebar-trigger" id="sb-trigger"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand">GOMATEX</div>
+      <div class="sub">Cashflow</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="nav('inicio')"><span class="icon">🏠</span> Inicio</div>
+      <div class="nav-lbl">Comprobantes</div>
+      <div class="nav-item" onclick="nav('facturas')"><span class="icon">🧾</span> Facturas / Clientes</div>
+      <div class="nav-lbl">Movimientos</div>
+      <div class="nav-item" onclick="nav('cheques')"><span class="icon">📝</span> Cheques</div>
+      <div class="nav-item" onclick="nav('prestamos')"><span class="icon">🏛️</span> Préstamos</div>
+      <div class="nav-lbl">Cuentas</div>
+      <div class="nav-item" onclick="nav('bancos')"><span class="icon">🏦</span> Bancos / Saldos</div>
+      <div class="nav-lbl">Análisis</div>
+      <div class="nav-item" onclick="nav('flujo')"><span class="icon">📈</span> Flujo Proyectado</div>
+      <div class="nav-item" onclick="nav('calculadora')"><span class="icon">🧮</span> Calculadora Viabilidad</div>
+      <div class="nav-lbl">Sistema</div>
+      <div class="nav-item" onclick="nav('sheets')"><span class="icon">🔗</span> Google Sheets</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sb-av">F</div>
+        <div><div class="user-name" id="sb-un">francisco</div><div class="user-role" id="sb-rl">admin</div></div>
+        <button class="logout-btn" onclick="doLogout()" title="Salir">⏻</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="sb-toggle" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-title" id="topbar-title">Inicio</div>
+      </div>
+      <div class="topbar-right">
+        <span id="autorefresh-indicator" style="font-size:11px;color:var(--gray-500);font-weight:600;display:none">
+          ⚡ live · sync: <span id="autorefresh-countdown">0:30</span>
+        </span>
+        <button class="sync-badge sync-ok" id="sync-badge" onclick="syncAll()">
+          <span class="sync-dot"></span> <span id="sync-txt">Sincronizado</span>
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="exportExcel()">📥 Exportar Excel</button>
+      </div>
+    </div>
+
+    <!-- ─── INICIO ─── -->
+    <div class="page active" id="page-inicio">
+      <div id="inicio-alerts"></div>
+      <div class="week-nav">
+        <div class="week-badge" id="week-badge">Semana —</div>
+        <select id="week-sel" onchange="changeWeek()"></select>
+        <span style="font-size:12px;color:var(--gray-500);font-weight:600">o ver día:</span>
+        <input type="date" id="day-sel" onchange="changeDay()">
+        <button class="btn btn-secondary btn-sm" onclick="resetWeek()">📍 Hoy</button>
+        <button class="btn btn-primary btn-sm" onclick="syncAll()">🔄 Actualizar datos</button>
+      </div>
+      <div class="card">
+        <div class="card-hdr">
+          <span class="card-title" id="cf-label">Flujo de caja semanal</span>
+          <span class="badge b-blue" id="cf-mode">Semanal</span>
+        </div>
+        <table class="cf-table" id="cf-table"></table>
+      </div>
+      <div class="kpi-grid" id="inicio-kpis"></div>
+    </div>
+
+    <!-- ─── FACTURAS ─── -->
+    <div class="page" id="page-facturas">
+      <div class="section-hdr">
+        <h2>Facturas / Clientes</h2>
+        <div class="section-hdr-actions">
+          <span class="badge b-green" id="fact-source-badge">📊 Google Sheets + Excel</span>
+          <label class="btn btn-success btn-sm" style="cursor:pointer" title="Importar Excel de FC pendientes (modelo adjunto)">
+            📂 Importar Excel FC
+            <input type="file" id="fc-file-input" accept=".xlsx,.xls" style="display:none" onchange="importarFacturasExcel(this)">
+          </label>
+          <button class="btn btn-secondary btn-sm" onclick="syncAll()">🔄 Actualizar</button>
+        </div>
+      </div>
+      <div id="fc-import-alert" style="display:none"></div>
+      <div class="kpi-grid" id="fact-kpis"></div>
+      <div class="card">
+        <div class="filters">
+          <select id="ff-tipo" onchange="renderFact()"><option value="">Todos los tipos</option><option value="Fc">Fc</option><option value="Rc">Rc</option><option value="Nc">Nc</option></select>
+          <select id="ff-est" onchange="renderFact()"><option value="">Todos los estados</option><option value="PENDIENTE">Pendiente</option><option value="COBRADO">Cobrado</option><option value="INCOBRABLE">Incobrable</option><option value="SALDO A FAVOR">Saldo a favor</option></select>
+          <select id="ff-sem" onchange="renderFact()"><option value="">Todas las semanas</option></select>
+          <input type="text" id="ff-q" placeholder="🔍 Buscar cliente..." oninput="renderFact()" style="min-width:180px">
+        </div>
+        <div class="tbl-wrap">
+          <table id="fact-tbl">
+            <thead><tr><th>Cliente</th><th>Tipo</th><th>Número</th><th>Fecha</th><th>Cobro estimado</th><th>Sem. cash flow</th><th>Monto</th><th>Estado</th><th>Días</th><th></th></tr></thead>
+            <tbody id="fact-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── CHEQUES ─── -->
+    <div class="page" id="page-cheques">
+      <div class="section-hdr">
+        <h2>Cheques</h2>
+        <div class="section-hdr-actions" id="cheq-hdr-actions">
+          <button class="btn btn-primary btn-sm" id="btn-nuevo-cheque" onclick="openChequeModal()">➕ Nuevo cheque recibido</button>
+          <button class="btn btn-secondary btn-sm" onclick="syncAll()">🔄 Actualizar</button>
+        </div>
+      </div>
+      <div class="view-tabs">
+        <button class="tab-btn active" onclick="switchCheqTab('recibidos',this)">📥 Recibidos</button>
+        <button class="tab-btn" onclick="switchCheqTab('emitidos',this)">💸 Emitidos</button>
+      </div>
+
+      <!-- RECIBIDOS -->
+      <div id="cheq-recibidos-view">
+        <div class="kpi-grid" id="cheq-kpis"></div>
+        <div class="card">
+          <div class="filters">
+            <input type="text" id="cheq-filter" placeholder="🔍 Buscar número, banco, nombre..." oninput="renderCheques()" style="min-width:240px">
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Estado</th>
+                <th>N° Cheque</th>
+                <th>Banco</th>
+                <th>Firmante</th>
+                <th>Entregado por</th>
+                <th>Ingreso</th>
+                <th>Vencimiento</th>
+                <th class="tr">Importe</th>
+                <th></th>
+              </tr></thead>
+              <tbody id="cheq-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMITIDOS -->
+      <div id="cheq-emitidos-view" style="display:none">
+        <div class="kpi-grid" id="cheq-emit-kpis"></div>
+        <div class="card">
+          <div class="filters">
+            <input type="text" id="cheq-emit-filter" placeholder="🔍 Buscar número, beneficiario..." oninput="renderChequesEmitidos()" style="min-width:240px">
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th>Fecha de emisión</th>
+                <th>Fecha de vencimiento</th>
+                <th>Número</th>
+                <th>Beneficiario</th>
+                <th class="tr">Importe</th>
+                <th></th>
+              </tr></thead>
+              <tbody id="cheq-emit-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL CHEQUE RECIBIDO -->
+    <div class="modal-ov" id="modal-cheque">
+      <div class="modal" style="max-width:600px">
+        <div class="modal-hdr">
+          <h3 id="modal-cheque-title">Nuevo cheque recibido</h3>
+          <button class="modal-x" onclick="closeM('modal-cheque')">×</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="cheq-edit-id">
+          <div class="grid2">
+            <div class="fg"><label>N° Cheque *</label><input type="text" id="cheq-numero" placeholder="00000000"></div>
+            <div class="fg"><label>Banco</label><input type="text" id="cheq-banco" placeholder="Banco Galicia"></div>
+          </div>
+          <div class="grid2">
+            <div class="fg"><label>Firmante</label><input type="text" id="cheq-firmante" placeholder="Nombre del firmante"></div>
+            <div class="fg"><label>Entregado por</label><input type="text" id="cheq-recibido-de" placeholder="Empresa / persona que nos lo entregó"></div>
+          </div>
+          <div class="grid2">
+            <div class="fg"><label>Ingreso (fecha recepción)</label><input type="date" id="cheq-fecha-emision"></div>
+            <div class="fg"><label>Vencimiento *</label><input type="date" id="cheq-fecha-pago"></div>
+          </div>
+          <div class="grid3">
+            <div class="fg"><label>Importe *</label><input type="number" id="cheq-monto" placeholder="0" min="0"></div>
+            <div class="fg"><label>Entregado a</label><input type="text" id="cheq-entregado-a" placeholder="A quién lo entregamos"></div>
+            <div class="fg"><label>Fecha de entrega</label><input type="date" id="cheq-fecha-entrega"></div>
+          </div>
+          <div id="cheq-modal-err" style="display:none;background:var(--red-light);color:var(--red);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;font-weight:700;margin-top:4px"></div>
+        </div>
+        <div class="modal-ftr">
+          <button class="btn btn-secondary" onclick="closeM('modal-cheque')">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveCheque()">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL CHEQUE EMITIDO -->
+    <div class="modal-ov" id="modal-cheque-emit">
+      <div class="modal" style="max-width:520px">
+        <div class="modal-hdr">
+          <h3 id="modal-emit-title">Nuevo cheque emitido</h3>
+          <button class="modal-x" onclick="closeM('modal-cheque-emit')">×</button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="emit-edit-id">
+          <div class="grid2">
+            <div class="fg"><label>Número *</label><input type="text" id="emit-numero" placeholder="00000000"></div>
+            <div class="fg"><label>Beneficiario *</label><input type="text" id="emit-beneficiario" placeholder="Nombre / empresa"></div>
+          </div>
+          <div class="grid2">
+            <div class="fg"><label>Fecha de emisión *</label><input type="date" id="emit-fecha-emision"></div>
+            <div class="fg"><label>Fecha de vencimiento *</label><input type="date" id="emit-fecha-vencimiento"></div>
+          </div>
+          <div class="fg"><label>Importe *</label><input type="number" id="emit-importe" placeholder="0" min="0"></div>
+          <div id="emit-modal-err" style="display:none;background:var(--red-light);color:var(--red);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;font-weight:700;margin-top:4px"></div>
+        </div>
+        <div class="modal-ftr">
+          <button class="btn btn-secondary" onclick="closeM('modal-cheque-emit')">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveChequesEmitido()">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── PRÉSTAMOS ─── -->
+    <div class="page" id="page-prestamos">
+      <div class="section-hdr">
+        <h2>Préstamos</h2>
+        <div class="section-hdr-actions">
+          <span class="badge b-green">📊 Google Sheets</span>
+          <button class="btn btn-secondary btn-sm" onclick="syncAll()">🔄 Actualizar</button>
+        </div>
+      </div>
+      <div class="kpi-grid" id="loan-kpis"></div>
+      <div id="loan-list"></div>
+    </div>
+
+    <!-- ─── BANCOS ─── -->
+    <div class="page" id="page-bancos">
+      <div class="section-hdr">
+        <h2>Bancos y Saldos</h2>
+        <div class="section-hdr-actions">
+          <span class="badge b-blue">✏️ Carga Manual</span>
+          <button class="btn btn-secondary btn-sm" onclick="renderBancos()">🔄 Actualizar</button>
+        </div>
+      </div>
+      <div class="kpi-grid" id="banco-kpis"></div>
+      <div class="acc-grid" id="banco-cards"></div>
+
+      <!-- Formulario de saldos manuales -->
+      <div class="card" id="banco-manual-form" style="display:none">
+        <div class="card-hdr"><span class="card-title">✏️ Actualizar saldos</span><span style="font-size:11px;color:var(--gray-500)">Los saldos se guardan localmente en este dispositivo</span></div>
+        <div style="padding:16px 18px">
+          <div class="grid3">
+            <div class="fg"><label>🔴 Banco Galicia</label><input type="number" id="bm-galicia" placeholder="0" min="0"></div>
+            <div class="fg"><label>🔵 Banco Chubut</label><input type="number" id="bm-chubut" placeholder="0" min="0"></div>
+            <div class="fg"><label>🟡 Banco Macro</label><input type="number" id="bm-macro" placeholder="0" min="0"></div>
+            <div class="fg"><label>💳 Mercado Pago Trelew</label><input type="number" id="bm-mpTrelew" placeholder="0" min="0"></div>
+            <div class="fg"><label>💳 Mercado Pago Madryn</label><input type="number" id="bm-mpMadryn" placeholder="0" min="0"></div>
+            <div class="fg"><label>💵 Efectivo</label><input type="number" id="bm-efectivo" placeholder="0" min="0"></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveBancosManual()">💾 Guardar saldos</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">📋 Movimientos importados</span></div>
+        <div class="tbl-wrap"><table id="banco-tbl">
+          <thead><tr><th>Fecha</th><th>Banco</th><th>Tipo</th><th>Descripción</th><th class="tr">Monto</th></tr></thead>
+          <tbody id="banco-body"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ─── FLUJO ─── -->
+    <div class="page" id="page-flujo">
+      <div class="section-hdr"><h2>Flujo Proyectado</h2></div>
+      <div class="view-tabs">
+        <button class="tab-btn active" onclick="switchFlujoView('semanal',this)">📅 Semanal</button>
+        <button class="tab-btn" onclick="switchFlujoView('diario',this)">📆 Diario (30 días)</button>
+        <button class="tab-btn" onclick="switchFlujoView('mensual',this)">📊 Mensual</button>
+      </div>
+      <div id="flujo-alerts"></div>
+      <div class="card"><div class="tbl-wrap" id="flujo-wrap"></div></div>
+    </div>
+
+    <!-- ─── SHEETS CONFIG ─── -->
+    <div class="page" id="page-sheets">
+      <div class="section-hdr"><h2>Conexión Google Sheets</h2></div>
+      <div class="sheets-panel">
+        <h3>🔗 Hoja conectada: <a href="https://docs.google.com/spreadsheets/d/1qCaoz53N-tUy_JmDuCVSPNdNcT7VeJCuOizulCus5qk/edit" target="_blank" style="color:var(--blue)">GOMATEX | Cash Flow 2025-2026</a></h3>
+        <div style="font-size:11px;color:var(--gray-500);margin-top:6px;margin-bottom:12px">
+          ✅ URL publicada configurada. La hoja debe estar publicada en <strong>Archivo → Publicar en la web → CSV</strong>.<br>
+          Ingresá el GID de cada pestaña (lo ves en la URL cuando hacés clic en cada tab: <code>...#gid=XXXXXXX</code>).
+        </div>
+        <div class="sheets-tab-grid" id="sheets-status-grid"></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">⚙️ GIDs de cada pestaña</span></div>
+        <div style="padding:16px 18px">
+
+          <!-- Estado de configuración compartida -->
+          <div style="margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span id="cfg-cloud-status"><span class="badge b-gray">⏳ Verificando origen...</span></span>
+          </div>
+
+          <!-- Instrucciones SQL (colapsable) -->
+          <details style="margin-bottom:16px;background:var(--gray-50);border-radius:var(--r-sm);padding:12px 14px;border:1px solid var(--gray-200)">
+            <summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--blue)">☁️ ¿Cómo habilitar config compartida entre PCs? (solo 1 vez)</summary>
+            <div style="margin-top:10px;font-size:12px;color:var(--gray-700);line-height:1.7">
+              <p style="margin-bottom:6px">Ejecutá este SQL en <strong>Supabase → SQL Editor</strong>:</p>
+              <pre style="background:var(--gray-900);color:#A8FF78;padding:12px;border-radius:6px;font-size:11px;overflow-x:auto;white-space:pre-wrap">create table if not exists gomatex_config (
+  key text primary key,
+  value text,
+  updated_at timestamptz default now()
+);
+alter table gomatex_config enable row level security;
+create policy "auth_read"  on gomatex_config for select using (auth.role() = 'authenticated');
+create policy "auth_write" on gomatex_config for all    using (auth.role() = 'authenticated');</pre>
+              <p style="margin-top:8px">Después guardá los GIDs desde <strong>cualquier PC</strong> y todas las demás los verán automáticamente al ingresar.</p>
+            </div>
+          </details>
+
+          <div class="alert alert-info" style="margin-bottom:14px">Para obtener el GID de una pestaña: abrí la hoja → hacé clic en la pestaña → mirá la URL, el número después de <code>gid=</code> es el GID.</div>
+          <div class="grid2">
+            <div class="fg"><label>💸 GID — CHEQUES EMITIDOS</label>
+              <input type="text" id="cfg-gid-cheq-emit" placeholder="ej: 1100066853">
+            </div>
+            <div class="fg"><label>📥 GID — CHEQUES RECIBIDOS</label>
+              <input type="text" id="cfg-gid-cheq-recib" placeholder="ej: 234567890">
+            </div>
+            <div class="fg"><label>👥 GID — SUELDOS</label>
+              <input type="text" id="cfg-gid-sueldos" placeholder="ej: 345678901">
+            </div>
+            <div class="fg"><label>🏛️ GID — IMPUESTOS Y PLANES FACILIDAD</label>
+              <input type="text" id="cfg-gid-impuestos" placeholder="ej: 456789012">
+            </div>
+            <div class="fg"><label>💳 GID — PRÉSTAMOS</label>
+              <input type="text" id="cfg-gid-prestamos" placeholder="ej: 567890123">
+            </div>
+            <div class="fg"><label>🧾 GID — CLIENTES / FACTURAS (opcional)</label>
+              <input type="text" id="cfg-gid-clientes" placeholder="ej: 0">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveConfig()">☁️ Guardar y compartir con todas las PCs</button>
+          <button class="btn btn-secondary" onclick="syncAll()">🔄 Sincronizar ahora</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><span class="card-title">📋 Log de sincronización</span></div>
+        <div id="sync-log" style="padding:14px 18px;font-size:12px;font-family:monospace;max-height:300px;overflow-y:auto;color:var(--gray-700)">
+          Esperando sincronización...
+        </div>
+      </div>
+    </div>
+
+  </div><!-- main-content -->
+</div><!-- app -->
+
+<!-- ─── CALCULADORA DE VIABILIDAD (página) ─── -->
+<script>
+// Será insertada como página en el DOM antes del cierre de main-content
+document.addEventListener('DOMContentLoaded', function(){
+  const mainContent = document.querySelector('.main-content');
+  const calcPage = document.createElement('div');
+  calcPage.className = 'page';
+  calcPage.id = 'page-calculadora';
+  calcPage.innerHTML = `
+    <div class="section-hdr">
+      <h2>Calculadora de Viabilidad</h2>
+      <div class="section-hdr-actions">
+        <span class="badge b-blue">🧮 Análisis de impacto</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><span class="card-title">Cargá el movimiento a evaluar</span></div>
+      <div style="padding:16px 18px">
+        <div class="grid2">
+          <div class="fg">
+            <label>Tipo de movimiento</label>
+            <select id="calc-tipo">
+              <option value="egreso">Egreso (compra, pago, inversión)</option>
+              <option value="ingreso">Ingreso adicional</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Fecha del movimiento *</label>
+            <input type="date" id="calc-fecha">
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="fg">
+            <label>Monto *</label>
+            <input type="number" id="calc-monto" placeholder="0" min="0">
+          </div>
+          <div class="fg">
+            <label>Descripción (opcional)</label>
+            <input type="text" id="calc-desc" placeholder="ej: Compra mercadería proveedor X">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="calcularViabilidad()">🔍 Analizar viabilidad</button>
+      </div>
+    </div>
+    <div id="calc-resultado" style="display:none"></div>
+  `;
+  mainContent.appendChild(calcPage);
+});
+</script>
+
+<!-- MODAL Editar factura -->
+<div class="modal-ov" id="modal-fact-edit">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-hdr"><h3>Editar estado de cobro</h3><button class="modal-x" onclick="closeM('modal-fact-edit')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="mfe-id">
+      <div class="fg"><label>Cliente</label><input type="text" id="mfe-cli" readonly style="background:var(--gray-50)"></div>
+      <div class="fg"><label>Estado</label>
+        <select id="mfe-est"><option value="PENDIENTE">Pendiente</option><option value="COBRADO">Cobrado</option><option value="INCOBRABLE">Incobrable</option><option value="SALDO A FAVOR">Saldo a favor</option></select>
+      </div>
+      <div class="fg"><label>Fecha cobro acordada</label><input type="date" id="mfe-fecha"></div>
+      <div class="fg"><label>Semana cash flow override</label><input type="text" id="mfe-sem" placeholder="ej: 20_2026"></div>
+    </div>
+    <div class="modal-ftr">
+      <button class="btn btn-secondary" onclick="closeM('modal-fact-edit')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveFactEdit()">Guardar (local)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  SUPABASE CONFIG — reemplazar con tus credenciales
+// ══════════════════════════════════════════════════════
+
+const SUPABASE_URL  = window.__SUPABASE_URL__  || 'https://ddliwqgkxbxkfwdncfjs.supabase.co';
+const SUPABASE_ANON = window.__SUPABASE_ANON__ || 'sb_publishable_2kdlxUF5iQ4a75GFKoSmpQ_1jIeay9j';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// ══════════════════════════════════════════════════════
+//  CONFIG GOOGLE SHEETS
+// ══════════════════════════════════════════════════════
+
+// URL publicada como CSV (la hoja debe estar publicada en Archivo → Publicar en la web)
+const PUB_BASE = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQnqqsRUBEXKhvwmbD95IFiiTtXYKYpQCLCEcn-_2nafnB22DUwlhFYEyFo3AQn-RPeHCbvHHzfnoVD/pub';
+const SHEET_LINK = 'https://docs.google.com/spreadsheets/d/1qCaoz53N-tUy_JmDuCVSPNdNcT7VeJCuOizulCus5qk/edit';
+
+// GIDs de cada pestaña — ver URL de cada pestaña en la hoja
+let CONFIG = {
+  gidCheqEmit:   '',   // pestaña CHEQUES EMITIDOS
+  gidCheqRecib:  '',   // pestaña CHEQUES RECIBIDOS
+  gidSueldos:    '',   // pestaña SUELDOS
+  gidImpuestos:  '',   // pestaña IMPUESTOS Y PLANES FACILIDAD
+  gidPrestamos:  '',   // pestaña PRÉSTAMOS
+  gidClientes:   '',   // pestaña Facturas / Clientes (opcional)
+};
+
+function csvUrl(gid) {
+  if (!gid) return `${PUB_BASE}?output=csv`;
+  return `${PUB_BASE}?gid=${gid}&single=true&output=csv`;
+}
+
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+
+// Usuarios gestionados en Supabase Auth + user_metadata: { rol, name }
+// Roles: 'admin' | 'standard' | 'readonly'
+
+let SESSION = null;
+let currentWeekKey = null;
+let currentDayMode = false;
+let flujoView = 'semanal';
+
+// Datos en memoria
+let DATA = {
+  clientes: [],          // facturas/clientes desde Sheets
+  cheques: [],           // cheques recibidos
+  chequesEmitidos: [],   // cheques emitidos
+  sueldos: [],           // sueldos desde Sheets
+  impuestos: [],         // impuestos y planes de facilidad desde Sheets
+  bancos: [],            // compatibilidad interna
+  bancosMovimientos: [], // movimientos bancarios
+  prestamos: [],         // préstamos
+  bancosManual: {        // saldos manuales por banco
+    galicia:0, chubut:0, macro:0, mpTrelew:0, mpMadryn:0, efectivo:0
+  },
+  localEdits: {},
+  syncStatus: {},
+  lastSync: null,
+};
+
+// ══════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════
+
+const today = () => new Date();
+const addDays = (d,n) => { const r=new Date(d); r.setDate(r.getDate()+n); return r; };
+const toISO = d => new Date(d).toISOString().split('T')[0];
+const fmtDate = d => d ? new Date(d).toLocaleDateString('es-AR') : '-';
+const fmtM = n => '$'+(n||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+const gid = () => '_'+Math.random().toString(36).slice(2,9);
+
+function weekKey(d) {
+  const dt = new Date(d);
+  if (isNaN(dt)) return null;
+  const jan4 = new Date(dt.getFullYear(),0,4);
+  const sow = new Date(jan4); sow.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
+  const diff = Math.floor((dt-sow)/86400000);
+  let w = Math.floor(diff/7)+1;
+  let yr = dt.getFullYear();
+  if(w<1){yr--;return weekKey(new Date(yr,11,28));}
+  if(w>52){
+    const jan4n=new Date(yr+1,0,4);
+    const sown=new Date(jan4n); sown.setDate(jan4n.getDate()-((jan4n.getDay()+6)%7));
+    if(dt>=sown) return '1_'+(yr+1);
+  }
+  return w+'_'+yr;
+}
+
+function weekStart(key) {
+  const [w,yr] = key.split('_').map(Number);
+  const jan4 = new Date(yr,0,4);
+  const sow = new Date(jan4); sow.setDate(jan4.getDate()-((jan4.getDay()+6)%7));
+  const d = new Date(sow); d.setDate(sow.getDate()+(w-1)*7);
+  return d;
+}
+function weekEnd(key) { return addDays(weekStart(key),6); }
+
+function getWeeks(n=8) {
+  const weeks=[], now=today();
+  const dow=(now.getDay()+6)%7;
+  const mon=new Date(now); mon.setDate(now.getDate()-dow);
+  for(let i=0;i<n;i++){
+    const s=new Date(mon); s.setDate(mon.getDate()+i*7);
+    const e=new Date(s); e.setDate(s.getDate()+6);
+    weeks.push({key:weekKey(s),start:s,end:e});
+  }
+  return weeks;
+}
+
+function parseNum(s) {
+  if(s===null||s===undefined||s==='') return 0;
+  if(typeof s==='number') return s;
+  let str = String(s).trim().replace(/\s/g,'');
+  // Detectar formato: si hay punto Y coma, el último determina decimal
+  const hasDot   = str.includes('.');
+  const hasComma = str.includes(',');
+  if(hasDot && hasComma) {
+    const lastDot   = str.lastIndexOf('.');
+    const lastComma = str.lastIndexOf(',');
+    if(lastComma > lastDot) {
+      // formato AR: 1.234,56 → coma es decimal
+      str = str.replace(/\./g,'').replace(',','.');
+    } else {
+      // formato US: 1,234.56 → punto es decimal
+      str = str.replace(/,/g,'');
+    }
+  } else if(hasComma && !hasDot) {
+    // Solo coma → decimal AR: 1234,56
+    str = str.replace(',','.');
+  }
+  // Quitar caracteres no numéricos salvo punto y signo
+  str = str.replace(/[^0-9.\-]/g,'');
+  return parseFloat(str)||0;
+}
+
+function parseDateStr(s) {
+  if(!s) return null;
+  const str = String(s).trim();
+  // dd/mm/yyyy o dd/mm/yy
+  const m1 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if(m1) return new Date(`${m1[3].length===2?'20'+m1[3]:m1[3]}-${m1[2].padStart(2,'0')}-${m1[1].padStart(2,'0')}T12:00:00`);
+  // dd-Mon-yy o dd-Mon-yyyy  (ej: 21-Apr-26, 5-Jan-2026)
+  const m2 = str.match(/^(\d{1,2})[- ]([A-Za-z]{3})[- ](\d{2,4})$/);
+  if(m2){
+    const mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
+              ene:1,abr:4,ago:8,dic:12}[m2[2].toLowerCase()];
+    if(mo){const yr=m2[3].length===2?'20'+m2[3]:m2[3];return new Date(`${yr}-${String(mo).padStart(2,'0')}-${m2[1].padStart(2,'0')}T12:00:00`);}
+  }
+  // yyyy-mm-dd
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return new Date(str+'T12:00:00');
+  // dd-mm-yyyy
+  const m3 = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+  if(m3) return new Date(`${m3[3]}-${m3[2].padStart(2,'0')}-${m3[1].padStart(2,'0')}T12:00:00`);
+  // Número serial de Excel (días desde 1/1/1900)
+  const n = Number(str);
+  if(!isNaN(n) && n>40000 && n<60000){
+    const d=new Date(Date.UTC(1899,11,30)+(n*86400000)); d.setUTCHours(12); return d;
+  }
+  return null;
+}
+
+function cobroEstimado(f) {
+  // Primero usar semana cash flow de Sheets si existe
+  if(f.semCashFlow) {
+    try { return weekStart(f.semCashFlow); } catch(e){}
+  }
+  if(f.fechaCobroAcordada) return f.fechaCobroAcordada;
+  if(f.fechaEmision) return addDays(f.fechaEmision, 37);
+  return null;
+}
+
+// ══════════════════════════════════════════════════════
+//  CSV FETCH
+// ══════════════════════════════════════════════════════
+
+async function fetchCSV(url) {
+  const r = await fetch(url, {cache:'no-cache'});
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  const text = await r.text();
+  return parseCSV(text);
+}
+
+function parseCSV(text) {
+  const rows = [];
+  const lines = text.split('\n');
+  for(const line of lines) {
+    if(!line.trim()) continue;
+    const cols = [];
+    let cur = '', inQ = false;
+    for(let i=0;i<line.length;i++){
+      if(line[i]==='"'){ inQ=!inQ; continue; }
+      if(line[i]===','&&!inQ){ cols.push(cur.trim()); cur=''; continue; }
+      cur+=line[i];
+    }
+    cols.push(cur.trim());
+    rows.push(cols);
+  }
+  return rows;
+}
+
+// ══════════════════════════════════════════════════════
+//  IMPORTAR EXCEL DE FACTURAS DE CLIENTES
+// ══════════════════════════════════════════════════════
+
+// Modelo adjunto: codigo | nombre | fecha | tnumero | lnumero | numero | totals | moneda
+// Reglas:
+//   - Estado por defecto: PENDIENTE
+//   - Cobro estimado = fechaEmision + 37 días
+//   - semCashFlow = weekKey(cobro estimado)
+//   - Duplicados detectados por "numero" → actualizar si ya existe
+function importarFacturasExcel(input) {
+  const file = input.files[0];
+  if(!file) return;
+  // Reset input para permitir reimportar el mismo archivo
+  const alertEl = document.getElementById('fc-import-alert');
+  alertEl.style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'DD/MM/YYYY'});
+
+      if(!rows || rows.length < 2) {
+        showFcAlert('warning', '⚠️ El archivo no contiene datos válidos.');
+        return;
+      }
+
+      // Detectar fila de encabezados (buscamos "codigo" o "nombre" o "numero")
+      let headerRow = 0;
+      for(let i=0;i<Math.min(rows.length,5);i++){
+        const r = rows[i].map(c=>String(c||'').toLowerCase().trim());
+        if(r.some(c=>c.includes('codigo')||c.includes('código')||c.includes('nombre')||c.includes('numero')||c.includes('número'))) {
+          headerRow = i; break;
+        }
+      }
+
+      // Construir mapa de columnas flexible por header
+      const headers = rows[headerRow].map(c=>String(c||'').toLowerCase().trim());
+      const col = name => {
+        const idx = headers.findIndex(h=>h.includes(name));
+        return idx>=0 ? idx : -1;
+      };
+
+      // Índices de columnas según modelo adjunto
+      const iCod   = col('codigo')>=0 ? col('codigo') : 0;
+      const iNom   = col('nombre')>=0 ? col('nombre') : 1;
+      const iFech  = col('fecha')>=0  ? col('fecha')  : 2;
+      const iTipo  = col('tnumero')>=0? col('tnumero'): col('tipo')>=0 ? col('tipo') : 3;
+      const iLetra = col('lnumero')>=0? col('lnumero'): col('letra')>=0? col('letra') : 4;
+      const iNum   = col('numero')>=0 ? col('numero') : 5;
+      const iMonto = col('totals')>=0 ? col('totals') : col('total')>=0 ? col('total') : col('importe')>=0 ? col('importe') : 6;
+      const iMon   = col('moneda')>=0 ? col('moneda') : 7;
+
+      let creados=0, actualizados=0, errores=0;
+      const ahora = today();
+
+      for(let i=headerRow+1; i<rows.length; i++){
+        const r = rows[i];
+        if(!r || r.length < 3) continue;
+
+        const numero = String(r[iNum]||'').trim();
+        const nombre = String(r[iNom]||'').trim();
+        if(!numero && !nombre) continue;           // fila vacía
+        if(nombre.toLowerCase()==='nombre') continue; // encabezado repetido
+
+        const monto = parseNum(r[iMonto]);
+        // Parsear fecha — XLSX puede devolver string o Date
+        let fechaEmision = null;
+        const rawFecha = r[iFech];
+        if(rawFecha instanceof Date) {
+          fechaEmision = new Date(rawFecha);
+          fechaEmision.setHours(12,0,0,0);
+        } else {
+          fechaEmision = parseDateStr(String(rawFecha||''));
+        }
+
+        if(!fechaEmision || isNaN(fechaEmision)) { errores++; continue; }
+
+        const tipo    = String(r[iTipo]||'Fc').trim();
+        const letra   = String(r[iLetra]||'').trim();
+        const codigo  = String(r[iCod]||'').trim();
+        const moneda  = String(r[iMon]||'$').trim()==='$'?'ARS':String(r[iMon]||'ARS').trim();
+
+        // Cobro estimado = emision + 37 días
+        const cobro = addDays(fechaEmision, 37);
+        const semCF = weekKey(cobro);
+
+        const obj = {
+          id:                 `fc_${numero||('r'+i)}`,
+          codigo,
+          cliente:            nombre,
+          tipo,
+          letra,
+          numero,
+          monto:              Math.abs(monto),  // guardar positivo; los Rc se filtran por tipo
+          moneda,
+          fechaEmision,
+          fechaCobroAcordada: null,
+          estadoCobranza:     'PENDIENTE',
+          semVto:             '',
+          semCobroAcordado:   '',
+          semCashFlow:        semCF,
+          obs:                '',
+          fuenteExcel:        true,
+          importadoEn:        new Date().toISOString(),
+        };
+
+        // Duplicado: buscar por numero
+        const existente = DATA.clientes.findIndex(f=>f.numero===numero && numero!=='');
+        if(existente>=0) {
+          // Actualizar solo campos del Sheets, preservar edits manuales
+          const edit = DATA.localEdits[DATA.clientes[existente].id];
+          if(!edit || !edit.estadoCobranza) {
+            DATA.clientes[existente] = {...DATA.clientes[existente], ...obj, id: DATA.clientes[existente].id};
+          }
+          actualizados++;
+        } else {
+          DATA.clientes.push(obj);
+          creados++;
+        }
+      }
+
+      // Reset file input
+      input.value = '';
+
+      // Recalcular flujo y re-renderizar
+      renderFact();
+      renderInicio();
+
+      const msg = `✅ Importación completada: ${creados} nueva/s, ${actualizados} actualizada/s${errores>0?`, ${errores} fila/s con error de fecha`:''}`;
+      showFcAlert('success', msg);
+      syncLog(`📂 Excel FC importado: ${creados} nuevas, ${actualizados} actualizadas`, 'ok');
+
+    } catch(ex) {
+      input.value='';
+      showFcAlert('error', `❌ Error al leer el archivo: ${ex.message}`);
+      syncLog(`❌ Error importando Excel FC: ${ex.message}`, 'err');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function showFcAlert(type, msg) {
+  const el = document.getElementById('fc-import-alert');
+  if(!el) return;
+  const cls = {success:'alert-success',warning:'alert-warning',error:'alert-danger',info:'alert-info'}[type]||'alert-info';
+  el.className = `alert ${cls}`;
+  el.textContent = msg;
+  el.style.display = 'flex';
+  // Auto-ocultar después de 8s
+  setTimeout(()=>{ el.style.display='none'; }, 8000);
+}
+
+
+
+function syncLog(msg, type='info') {
+  const el = document.getElementById('sync-log');
+  if(!el) return;
+  const colors = {ok:'var(--green)',err:'var(--red)',info:'var(--gray-700)',warn:'var(--orange)'};
+  el.innerHTML += `<div style="color:${colors[type]||colors.info};margin-bottom:3px">${new Date().toLocaleTimeString('es-AR')} — ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+// ─ CLIENTES (pestaña principal o gid específico)
+// Columnas según tu hoja real:
+// codigo | nombre | fecha | tnumero | lnumero | numero | totals | moneda | 
+// cobro acordado | estado cobranza | nro sem vto | nro sem cobro acordado | nro de semana cash flow | observaciones
+function parseClientes(rows) {
+  const result = [];
+  let headerRow = -1;
+  // Buscar fila de encabezado
+  for(let i=0;i<Math.min(rows.length,10);i++){
+    const r = rows[i].map(c=>String(c).toLowerCase());
+    if(r.some(c=>c.includes('nombre')||c.includes('codigo')||c.includes('código'))) {
+      headerRow = i; break;
+    }
+  }
+  const startRow = headerRow>=0 ? headerRow+1 : 1;
+  for(let i=startRow;i<rows.length;i++){
+    const r = rows[i];
+    if(!r[1]&&!r[0]) continue; // fila vacía
+    const nombre = String(r[1]||'').trim();
+    if(!nombre||nombre.toLowerCase()==='nombre') continue;
+    const fechaRaw = r[2];
+    const tipo = String(r[3]||'').trim();
+    const letra = String(r[4]||'').trim();
+    const numero = String(r[5]||'').trim();
+    const monto = parseNum(r[6]);
+    const moneda = String(r[7]||'ARS').trim()==='$'?'ARS':String(r[7]||'ARS').trim();
+    // Columnas adicionales de tu hoja
+    const fechaCobroRaw = r[8]||'';
+    const estadoCobranza = String(r[9]||'PENDIENTE').trim().toUpperCase()||'PENDIENTE';
+    const semVto = String(r[10]||'').trim();
+    const semCobroAcordado = String(r[11]||'').trim();
+    const semCashFlow = String(r[12]||'').trim()||semCobroAcordado||semVto;
+    const obs = String(r[13]||'').trim();
+
+    const fechaEmision = parseDateStr(fechaRaw);
+    const fechaCobro = parseDateStr(fechaCobroRaw);
+
+    if(!numero&&!nombre) continue;
+    result.push({
+      id: `${numero}_${i}`,
+      codigo: String(r[0]||'').trim(),
+      cliente: nombre,
+      tipo: tipo||'Fc',
+      letra, numero,
+      monto,
+      moneda,
+      fechaEmision,
+      fechaCobroAcordada: fechaCobro,
+      estadoCobranza,
+      semVto,
+      semCobroAcordado,
+      semCashFlow,
+      obs,
+    });
+  }
+  return result;
+}
+
+// ─ CHEQUES RECIBIDOS
+// Columnas reales: Ingreso | Vencim. | IMPORTE | BANCO | NUMERO | FIRMANTE | ENTREGADO POR | ENTREGADO A | FECHA
+// El parser mapea por encabezados para ser robusto ante variaciones de orden.
+function parseCheques(rows) {
+  if(!rows || rows.length < 2) return [];
+  const result = [];
+  const numerosVistos = new Set();
+
+  // ── Detectar fila de encabezado ────────────────────────
+  let headerIdx = 0;
+  for(let i=0;i<Math.min(rows.length,6);i++){
+    const r=rows[i].map(c=>String(c||'').toLowerCase().trim());
+    const keys=['ingreso','vencim','importe','banco','numero','número','firmante','entregado'];
+    if(r.filter(c=>keys.some(k=>c.includes(k))).length >= 2) { headerIdx=i; break; }
+  }
+
+  // ── Mapear columnas por nombre ─────────────────────────
+  const headers = rows[headerIdx].map(c=>String(c||'').toLowerCase().trim());
+  const ci = (...names) => {
+    for(const n of names){
+      const idx=headers.findIndex(h=>h.includes(n));
+      if(idx>=0) return idx;
+    }
+    return -1;
+  };
+
+  // Índices con fallback posicional según columnas conocidas
+  const iIngreso  = ci('ingreso','fecha emision','emision','recepcion') >= 0 ? ci('ingreso','fecha emision','emision','recepcion') : 0;
+  const iVencim   = ci('vencim','vencimiento','fecha pago','cobro')     >= 0 ? ci('vencim','vencimiento','fecha pago','cobro')     : 1;
+  const iImporte  = ci('importe','monto','total','valor')               >= 0 ? ci('importe','monto','total','valor')               : 2;
+  const iBanco    = ci('banco')                                         >= 0 ? ci('banco')                                         : 3;
+  const iNumero   = ci('numero','número','nro','nº','cheque')           >= 0 ? ci('numero','número','nro','nº','cheque')           : 4;
+  const iFirmante = ci('firmante','librador','emisor')                  >= 0 ? ci('firmante','librador','emisor')                  : 5;
+  const iEntPor   = ci('entregado por','recibido de','origen','de')    >= 0 ? ci('entregado por','recibido de','origen','de')    : 6;
+  const iEntA     = ci('entregado a','destino','para')                  >= 0 ? ci('entregado a','destino','para')                  : 7;
+  const iFechaEnt = ci('fecha entrega','fecha de entrega')              >= 0 ? ci('fecha entrega','fecha de entrega')              : 8;
+
+  // ── Parsear filas de datos ─────────────────────────────
+  for(let i=headerIdx+1; i<rows.length; i++){
+    const r = rows[i];
+    if(!r || r.every(c=>String(c||'').trim()==='')) continue; // fila vacía
+
+    const monto  = parseNum(r[iImporte]);
+    const num    = String(r[iNumero]||'').trim();
+    const vencim = parseDateStr(r[iVencim]);
+
+    // Requiere al menos importe válido
+    if(monto <= 0) continue;
+
+    // Deduplicar por número (si existe)
+    const key = num || `row_${i}_${monto}`;
+    if(numerosVistos.has(key)) continue;
+    numerosVistos.add(key);
+
+    result.push({
+      id:           gid(),
+      fechaEmision: parseDateStr(r[iIngreso]),    // fecha de ingreso/recepción
+      fechaPago:    vencim,                        // fecha de vencimiento/cobro
+      monto:        Math.abs(monto),               // siempre positivo
+      bancoEmisor:  String(r[iBanco]   ||'').trim(),
+      numeroCheque: num,
+      firmante:     String(r[iFirmante]||'').trim(),
+      recibidoDe:   String(r[iEntPor]  ||'').trim(),
+      entregadoA:   String(r[iEntA]    ||'').trim(),
+      fechaEntrega: iFechaEnt>=0 ? parseDateStr(r[iFechaEnt]) : null,
+      // Todos los cheques de esta pestaña son INGRESOS por definición
+      esIngreso:    true,
+    });
+  }
+
+  syncLog(`   Cheques recibidos parseados: ${result.length} de ${rows.length-headerIdx-1} filas`, 'info');
+  return result;
+}
+
+// ─ BANCOS (saldos por semana)
+// semana | Galicia | Chubut | MP Madryn | MP TW | FIMA | Plazo Fijo
+// ─ CHEQUES EMITIDOS
+// fecha_emision | fecha_vencimiento | numero | beneficiario | importe
+function parseChequesEmitidos(rows) {
+  const result = [];
+  let start = 0;
+  for(let i=0;i<Math.min(rows.length,5);i++){
+    const r=rows[i].map(c=>String(c).toLowerCase());
+    if(r.some(c=>c.includes('emision')||c.includes('emisión')||c.includes('numero')||c.includes('número')||c.includes('beneficiario'))) { start=i+1; break; }
+  }
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i];
+    const num=String(r[2]||'').trim();
+    if(!num) continue;
+    const importe=parseNum(r[4]);
+    if(importe<=0) continue;
+    result.push({
+      id:           gid(),
+      fechaEmision: parseDateStr(r[0]),
+      fechaVto:     parseDateStr(r[1]),
+      numero:       num,
+      beneficiario: String(r[3]||'').trim(),
+      importe,
+    });
+  }
+  return result;
+}
+
+// ─ BANCOS — formato transaccional
+// Fecha | Banco | Tipo de movimiento (Ingreso/Egreso) | Descripción | Monto
+function parseBancos(rows) {
+  const movimientos = [];
+  let start = 0;
+  for(let i=0;i<Math.min(rows.length,5);i++){
+    const r=rows[i].map(c=>String(c).toLowerCase());
+    if(r.some(c=>c.includes('fecha')||c.includes('banco')||c.includes('tipo'))) { start=i+1; break; }
+  }
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i];
+    const fecha=parseDateStr(r[0]);
+    const banco=String(r[1]||'').trim();
+    const tipo=String(r[2]||'').trim();
+    const desc=String(r[3]||'').trim();
+    const monto=parseNum(r[4]);
+    if(!fecha||!banco||!monto) continue;
+    const tipoNorm=tipo.toLowerCase().includes('egreso')?'Egreso':'Ingreso';
+    movimientos.push({ id:gid(), fecha, banco, tipo:tipoNorm, descripcion:desc, monto });
+  }
+  // Mantener DATA.bancos compatible (agrupa saldos netos por semana por banco)
+  const semMap={};
+  movimientos.forEach(m=>{
+    const sk=weekKey(m.fecha);
+    if(!semMap[sk]) semMap[sk]={semana:sk,galicia:0,chubut:0,mpMadryn:0,mpTW:0,fima:0,plazoFijo:0};
+    const sign=m.tipo==='Ingreso'?1:-1;
+    const bk=m.banco.toLowerCase();
+    if(bk.includes('galicia')) semMap[sk].galicia+=sign*m.monto;
+    else if(bk.includes('chubut')) semMap[sk].chubut+=sign*m.monto;
+    else if(bk.includes('madryn')) semMap[sk].mpMadryn+=sign*m.monto;
+    else if(bk.includes('tw')||bk.includes('mercado pago tw')) semMap[sk].mpTW+=sign*m.monto;
+    else if(bk.includes('fima')) semMap[sk].fima+=sign*m.monto;
+    else if(bk.includes('plazo')) semMap[sk].plazoFijo+=sign*m.monto;
+  });
+  DATA.bancosMovimientos = movimientos;
+  return Object.values(semMap).sort((a,b)=>a.semana.localeCompare(b.semana));
+}
+
+// ─ PRÉSTAMOS
+// Soporta dos formatos:
+//   Formato A (flat): cada fila es una cuota
+//     → Entidad/Banco | Fecha_vcto | N_cuota | Monto_cuota | Estado | Capital
+//   Formato B (agrupado): fila de préstamo + sub-filas de cuotas
+//     → Encabezado: Banco/Entidad - Capital
+//     → Cuotas: N° | Fecha | Monto | Estado
+// El parser detecta encabezados por nombre de columna y adapta la lectura.
+function parsePrestamos(rows) {
+  if(!rows || rows.length < 2) return [];
+
+  // ── Detectar fila de encabezado ──────────────────────
+  let headerIdx = -1;
+  for(let i=0;i<Math.min(rows.length,8);i++){
+    const r=rows[i].map(c=>String(c||'').toLowerCase().trim());
+    const keywords=['entidad','banco','capital','cuota','vencim','fecha','monto','importe','estado','prestamo','préstamo'];
+    if(r.filter(c=>keywords.some(k=>c.includes(k))).length >= 2) { headerIdx=i; break; }
+  }
+
+  // ── Sin encabezado reconocible → intentar formato agrupado ───
+  if(headerIdx < 0) return parsePrestamosAgrupado(rows);
+
+  // ── Mapear columnas por nombre ────────────────────────
+  const headers = rows[headerIdx].map(c=>String(c||'').toLowerCase().trim());
+  const ci = name => {
+    const idx = headers.findIndex(h=>h.includes(name));
+    return idx >= 0 ? idx : -1;
+  };
+
+  // Índices de columnas (con fallbacks posicionales)
+  const iEnt    = ci('entidad')>=0?ci('entidad'): ci('banco')>=0?ci('banco'): ci('prestamo')>=0?ci('prestamo'): 0;
+  const iCap    = ci('capital')>=0?ci('capital'): ci('monto capital')>=0?ci('monto capital'): -1;
+  const iVcto   = ci('vencim')>=0?ci('vencim'): ci('fecha')>=0?ci('fecha'): ci('pago')>=0?ci('pago'): 1;
+  const iNCuota = ci('n°')>=0?ci('n°'): ci('cuota')>=0?ci('cuota'): ci('numero')>=0?ci('numero'): ci('nro')>=0?ci('nro'): 2;
+  const iMonto  = ci('monto')>=0?ci('monto'): ci('importe')>=0?ci('importe'): ci('capital')>=0&&iCap!==ci('capital')?ci('importe'): 3;
+  const iEst    = ci('estado')>=0?ci('estado'): ci('pagad')>=0?ci('pagad'): 4;
+  const iDesc   = ci('descrip')>=0?ci('descrip'): ci('concepto')>=0?ci('concepto'): ci('obs')>=0?ci('obs'): -1;
+
+  // ── Detectar si es formato flat (una fila = una cuota con entidad repetida)
+  // o formato agrupado (encabezado de préstamo + cuotas)
+  const dataRows = rows.slice(headerIdx+1).filter(r=>r.some(c=>String(c||'').trim()!==''));
+  if(!dataRows.length) return [];
+
+  // Si la columna de entidad tiene el mismo valor repetido → formato flat
+  const ents = dataRows.map(r=>String(r[iEnt]||'').trim()).filter(Boolean);
+  const uniqueEnts = new Set(ents);
+  const isFlat = uniqueEnts.size > 0 && (ents.length / uniqueEnts.size) > 1.5;
+
+  if(isFlat) {
+    // ── FORMATO FLAT ─────────────────────────────────────
+    const loanMap = {};
+    for(let i=0;i<dataRows.length;i++){
+      const r = dataRows[i];
+      const entidad = String(r[iEnt]||'').trim(); if(!entidad) continue;
+      const fecha   = parseDateStr(r[iVcto]);
+      const monto   = parseNum(r[iMonto]);
+      if(monto <= 0) continue;
+
+      const capVal  = iCap>=0 ? parseNum(r[iCap]) : 0;
+      const nCuota  = String(r[iNCuota]||i+1).trim();
+      const estRaw  = String(r[iEst]||'').toLowerCase();
+      const pagada  = estRaw.includes('pag') || estRaw.includes('cancel') || estRaw.includes('ok');
+      const obs     = iDesc>=0 ? String(r[iDesc]||'').trim() : '';
+
+      if(!loanMap[entidad]) {
+        loanMap[entidad] = { id:gid(), entidad, mto:capVal||0, cuotas:[], obs };
+      }
+      if(capVal>0 && capVal>loanMap[entidad].mto) loanMap[entidad].mto=capVal;
+      loanMap[entidad].cuotas.push({ num:nCuota, fecha, monto, pagada });
+    }
+    return Object.values(loanMap);
+
+  } else {
+    // ── FORMATO AGRUPADO — encabezado de préstamo + cuotas ─
+    return parsePrestamosAgrupado(rows, headerIdx+1, iEnt, iVcto, iMonto, iEst, iCap, iNCuota);
+  }
+}
+
+// Formato agrupado: detecta el encabezado del préstamo (texto no numérico grande)
+// y agrupa las filas de cuotas debajo
+function parsePrestamosAgrupado(rows, startFrom=1, iEnt=0, iVcto=1, iMonto=2, iEst=3, iCap=-1, iNCuota=0) {
+  const result = [];
+  let currentLoan = null;
+
+  for(let i=startFrom||1; i<rows.length; i++){
+    const r = rows[i];
+    const col0 = String(r[0]||'').trim();
+    const col1 = String(r[1]||'').trim();
+    if(!col0) continue;
+
+    // Detectar si es encabezado de préstamo:
+    // No empieza con dígito Y tiene monto grande en col 1 o 2
+    const montoRow = parseNum(r[iCap>=0?iCap:1] || r[2]);
+    const esEncabezado = col0 && !col0.match(/^\d/) && (montoRow>50000 || (!col1.match(/^\d\d\//)&&!parseDateStr(col1)));
+
+    if(esEncabezado) {
+      const capital = iCap>=0 ? parseNum(r[iCap]) : parseNum(r[1])||parseNum(r[2]);
+      currentLoan = { id:gid(), entidad:col0, mto:capital, cuotas:[], obs:String(r[r.length-1]||'').trim() };
+      result.push(currentLoan);
+    } else if(currentLoan) {
+      const fecha   = parseDateStr(r[iVcto]||r[1]);
+      const monto   = parseNum(r[iMonto]||r[2]||r[3]);
+      const nCuota  = String(r[iNCuota]||col0).trim();
+      const estRaw  = String(r[iEst]||'').toLowerCase();
+      const pagada  = estRaw.includes('pag')||estRaw.includes('cancel')||estRaw.includes('ok');
+      if(monto>0) currentLoan.cuotas.push({ num:nCuota, fecha, monto, pagada });
+    }
+  }
+  return result;
+}
+
+// ─ SUELDOS
+// Esperado: nombre | cargo | fecha_pago | monto | descripcion
+function parseSueldos(rows) {
+  const result = [];
+  let start = 0;
+  for(let i=0;i<Math.min(rows.length,6);i++){
+    const r=rows[i].map(c=>String(c).toLowerCase());
+    if(r.some(c=>c.includes('nombre')||c.includes('sueldo')||c.includes('monto')||c.includes('empleado'))) { start=i+1; break; }
+  }
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i];
+    const nombre=String(r[0]||'').trim();
+    if(!nombre) continue;
+    // detectar si la primera columna es fecha (algunos formatos lo traen primero)
+    const posibleFecha = parseDateStr(r[0]);
+    let nombre2, cargo, fechaPago, monto, desc;
+    if(posibleFecha) {
+      fechaPago = posibleFecha;
+      nombre2   = String(r[1]||'').trim();
+      cargo     = String(r[2]||'').trim();
+      monto     = parseNum(r[3]);
+      desc      = String(r[4]||'').trim();
+    } else {
+      nombre2   = nombre;
+      cargo     = String(r[1]||'').trim();
+      fechaPago = parseDateStr(r[2]);
+      monto     = parseNum(r[3]);
+      desc      = String(r[4]||'').trim();
+    }
+    if(!fechaPago||monto<=0) continue;
+    result.push({ id:gid(), nombre:nombre2, cargo, fechaPago, monto, descripcion:desc });
+  }
+  return result;
+}
+
+// ─ IMPUESTOS Y PLANES FACILIDAD
+// Esperado: concepto | tipo | fecha_pago | monto | descripcion
+function parseImpuestos(rows) {
+  const result = [];
+  let start = 0;
+  for(let i=0;i<Math.min(rows.length,6);i++){
+    const r=rows[i].map(c=>String(c).toLowerCase());
+    if(r.some(c=>c.includes('concepto')||c.includes('impuesto')||c.includes('vencimiento')||c.includes('monto'))) { start=i+1; break; }
+  }
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i];
+    const col0 = String(r[0]||'').trim();
+    if(!col0) continue;
+    const posibleFecha = parseDateStr(r[0]);
+    let concepto, tipo, fechaPago, monto, desc;
+    if(posibleFecha) {
+      fechaPago = posibleFecha;
+      concepto  = String(r[1]||'').trim();
+      tipo      = String(r[2]||'').trim();
+      monto     = parseNum(r[3]);
+      desc      = String(r[4]||'').trim();
+    } else {
+      concepto  = col0;
+      tipo      = String(r[1]||'').trim();
+      fechaPago = parseDateStr(r[2]);
+      monto     = parseNum(r[3]);
+      desc      = String(r[4]||'').trim();
+    }
+    if(!fechaPago||monto<=0) continue;
+    result.push({ id:gid(), concepto, tipo, fechaPago, monto, descripcion:desc });
+  }
+  return result;
+}
+
+
+
+function setSyncStatus(status, msg) {
+  const badge = document.getElementById('sync-badge');
+  const txt = document.getElementById('sync-txt');
+  if(!badge||!txt) return;
+  badge.className = `sync-badge sync-${status}`;
+  if(status==='loading') {
+    txt.innerHTML = `<span class="spin">↻</span> ${msg||'Sincronizando...'}`;
+  } else {
+    badge.querySelector('.sync-dot')||badge.insertAdjacentHTML('afterbegin','<span class="sync-dot"></span> ');
+    txt.textContent = msg||'Sincronizado';
+  }
+}
+
+async function syncAll() {
+  setSyncStatus('loading', 'Conectando...');
+  document.getElementById('sync-log').innerHTML = '';
+  syncLog('🔄 Iniciando sincronización con Google Sheets...', 'info');
+  syncLog(`📋 Hoja: ${SHEET_LINK}`, 'info');
+
+  let ok = 0, fail = 0;
+
+  // ─ CHEQUES EMITIDOS
+  if(CONFIG.gidCheqEmit) {
+    try {
+      setSyncStatus('loading', 'Leyendo Cheques Emitidos...');
+      syncLog('📥 Leyendo pestaña CHEQUES EMITIDOS...', 'info');
+      const rows = await fetchCSV(csvUrl(CONFIG.gidCheqEmit));
+      DATA.chequesEmitidos = parseChequesEmitidos(rows);
+      DATA.syncStatus.cheqEmit = {ok:true, count:DATA.chequesEmitidos.length};
+      syncLog(`✅ Cheques Emitidos: ${DATA.chequesEmitidos.length} registros`, 'ok');
+      ok++;
+    } catch(e) {
+      DATA.syncStatus.cheqEmit = {ok:false, error:e.message};
+      syncLog(`❌ Cheques Emitidos: ${e.message}`, 'err');
+      fail++;
+    }
+  } else { syncLog('⚠️ GID Cheques Emitidos no configurado', 'warn'); }
+
+  // ─ CHEQUES RECIBIDOS
+  if(CONFIG.gidCheqRecib) {
+    try {
+      setSyncStatus('loading', 'Leyendo Cheques Recibidos...');
+      syncLog('📥 Leyendo pestaña CHEQUES RECIBIDOS...', 'info');
+      const rows = await fetchCSV(csvUrl(CONFIG.gidCheqRecib));
+      DATA.cheques = parseCheques(rows);
+      DATA.syncStatus.cheques = {ok:true, count:DATA.cheques.length};
+      syncLog(`✅ Cheques Recibidos: ${DATA.cheques.length} registros`, 'ok');
+      ok++;
+    } catch(e) {
+      DATA.syncStatus.cheques = {ok:false, error:e.message};
+      syncLog(`❌ Cheques Recibidos: ${e.message}`, 'err');
+      fail++;
+      seedChequesEjemplo();
+    }
+  } else {
+    syncLog('⚠️ GID Cheques Recibidos no configurado — usando datos de ejemplo', 'warn');
+    seedChequesEjemplo();
+  }
+
+  // ─ SUELDOS
+  if(CONFIG.gidSueldos) {
+    try {
+      setSyncStatus('loading', 'Leyendo Sueldos...');
+      syncLog('📥 Leyendo pestaña SUELDOS...', 'info');
+      const rows = await fetchCSV(csvUrl(CONFIG.gidSueldos));
+      DATA.sueldos = parseSueldos(rows);
+      DATA.syncStatus.sueldos = {ok:true, count:DATA.sueldos.length};
+      syncLog(`✅ Sueldos: ${DATA.sueldos.length} registros`, 'ok');
+      ok++;
+    } catch(e) {
+      DATA.syncStatus.sueldos = {ok:false, error:e.message};
+      syncLog(`❌ Sueldos: ${e.message}`, 'err');
+      fail++;
+    }
+  } else { syncLog('⚠️ GID Sueldos no configurado', 'warn'); }
+
+  // ─ IMPUESTOS Y PLANES FACILIDAD
+  if(CONFIG.gidImpuestos) {
+    try {
+      setSyncStatus('loading', 'Leyendo Impuestos...');
+      syncLog('📥 Leyendo pestaña IMPUESTOS Y PLANES FACILIDAD...', 'info');
+      const rows = await fetchCSV(csvUrl(CONFIG.gidImpuestos));
+      DATA.impuestos = parseImpuestos(rows);
+      DATA.syncStatus.impuestos = {ok:true, count:DATA.impuestos.length};
+      syncLog(`✅ Impuestos: ${DATA.impuestos.length} registros`, 'ok');
+      ok++;
+    } catch(e) {
+      DATA.syncStatus.impuestos = {ok:false, error:e.message};
+      syncLog(`❌ Impuestos: ${e.message}`, 'err');
+      fail++;
+    }
+  } else { syncLog('⚠️ GID Impuestos no configurado', 'warn'); }
+
+  // ─ PRÉSTAMOS
+  if(CONFIG.gidPrestamos) {
+    try {
+      setSyncStatus('loading', 'Leyendo Préstamos...');
+      syncLog('📥 Leyendo pestaña PRÉSTAMOS...', 'info');
+      const rows = await fetchCSV(csvUrl(CONFIG.gidPrestamos));
+      DATA.prestamos = parsePrestamos(rows);
+      DATA.syncStatus.prestamos = {ok:true, count:DATA.prestamos.length};
+      syncLog(`✅ Préstamos: ${DATA.prestamos.length} registros`, 'ok');
+      ok++;
+    } catch(e) {
+      DATA.syncStatus.prestamos = {ok:false, error:e.message};
+      syncLog(`❌ Préstamos: ${e.message}`, 'err');
+      fail++;
+      seedPrestamosEjemplo();
+    }
+  } else {
+    syncLog('⚠️ GID Préstamos no configurado — usando datos de ejemplo', 'warn');
+    seedPrestamosEjemplo();
+  }
+
+  // ─ Clientes / Facturas (opcional)
+  if(CONFIG.gidClientes) {
+    try {
+      setSyncStatus('loading', 'Leyendo Clientes...');
+      syncLog('📥 Leyendo pestaña Clientes...', 'info');
+      const rows = await fetchCSV(csvUrl(CONFIG.gidClientes));
+      DATA.clientes = parseClientes(rows);
+      DATA.syncStatus.clientes = {ok:true, count:DATA.clientes.length, ts:new Date()};
+      syncLog(`✅ Clientes: ${DATA.clientes.length} registros`, 'ok');
+      ok++;
+    } catch(e) {
+      DATA.syncStatus.clientes = {ok:false, error:e.message};
+      syncLog(`❌ Clientes: ${e.message}`, 'err');
+      fail++;
+      seedFacturasEjemplo();
+      syncLog('⚠️ Usando datos de ejemplo para facturas', 'warn');
+    }
+  } else {
+    syncLog('⚠️ GID Clientes no configurado — usando datos de ejemplo', 'warn');
+    seedFacturasEjemplo();
+  }
+
+  DATA.lastSync = new Date();
+  const ts = DATA.lastSync.toLocaleTimeString('es-AR');
+
+  if(fail===0) {
+    setSyncStatus('ok', `Actualizado ${ts}`);
+    syncLog(`🎉 Sincronización completada: ${ok} fuentes`, 'ok');
+  } else if(ok>0) {
+    setSyncStatus('ok', `Parcial ${ts}`);
+    syncLog(`⚠️ Sincronización parcial: ${ok} ok, ${fail} errores`, 'warn');
+  } else {
+    setSyncStatus('err', 'Sin conexión');
+    syncLog('❌ No se pudo conectar con Google Sheets. Revisá los GIDs y que la hoja sea pública.', 'err');
+  }
+
+  updateSheetsPanel();
+  const activePage = document.querySelector('.page.active');
+  if(activePage) {
+    const id = activePage.id.replace('page-','');
+    const renders = {inicio:renderInicio,facturas:renderFact,cheques:renderCheques,prestamos:renderLoans,bancos:renderBancos,flujo:renderFlujo,calculadora:renderCalculadora};
+    if(renders[id]) renders[id]();
+  }
+}
+
+function updateSheetsPanel() {
+  const grid = document.getElementById('sheets-status-grid');
+  if(!grid) return;
+  const tabs = [
+    {key:'cheqEmit',   name:'Cheques Emitidos',           icon:'💸'},
+    {key:'cheques',    name:'Cheques Recibidos',           icon:'📥'},
+    {key:'sueldos',    name:'Sueldos',                     icon:'👥'},
+    {key:'impuestos',  name:'Impuestos y Planes Facilidad',icon:'🏛️'},
+    {key:'prestamos',  name:'Préstamos',                   icon:'🏦'},
+    {key:'clientes',   name:'Clientes / Facturas',         icon:'🧾'},
+  ];
+  grid.innerHTML = tabs.map(t => {
+    const s = DATA.syncStatus[t.key];
+    const cls = !s ? 'b-gray' : s.ok ? 'b-green' : 'b-red';
+    const status = !s ? 'No sincronizado' : s.ok ? `${s.count} registros` : `Error: ${s.error}`;
+    return `<div class="sheets-tab">
+      <div class="sheets-tab-name">${t.icon} ${t.name}</div>
+      <div class="sheets-tab-count"><span class="badge ${cls}" style="font-size:10px">${status}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  SEED DATA (fallback si Sheets no está configurado)
+// ══════════════════════════════════════════════════════
+
+function seedFacturasEjemplo() {
+  const t = today();
+  const clientes = ['CONARPESA','DISTRIBUIDORA NORTE S.A.','ACHERNAR S.R.L.','BLACKSMITH SAS','ALBAMAR S.R.L.','ARBUMASA S.A.','CABO VIRGENES S.A.','CONSTRUCTORA ANDINA'];
+  DATA.clientes = clientes.map((c,i)=>({
+    id:gid(), codigo:String(1000+i), cliente:c, tipo:'Fc', letra:'A',
+    numero:`000700033${100+i}`, monto:Math.round(100000+Math.random()*900000),
+    moneda:'ARS', fechaEmision:addDays(t,-i*7), fechaCobroAcordada:null,
+    estadoCobranza:'PENDIENTE', semVto:'', semCobroAcordado:'',
+    semCashFlow:weekKey(addDays(t,37-i*7)), obs:'',
+  }));
+}
+
+function seedChequesEjemplo() {
+  const t = today();
+  DATA.cheques = [
+    {id:gid(), numeroCheque:'8810234', recibidoDe:'CONARPESA', fechaPago:addDays(t,15), fechaEmision:addDays(t,-5), bancoEmisor:'Banco Nación', monto:500000, entregadoA:'', fechaEntrega:null},
+    {id:gid(), numeroCheque:'4420981', recibidoDe:'ACHERNAR S.R.L.', fechaPago:addDays(t,30), fechaEmision:addDays(t,-2), bancoEmisor:'Banco Galicia', monto:1200000, entregadoA:'PROVEEDOR X', fechaEntrega:addDays(t,3)},
+    {id:gid(), numeroCheque:'5501100', recibidoDe:'', fechaPago:addDays(t,7), fechaEmision:t, bancoEmisor:'Banco Chubut', monto:350000, entregadoA:'DISTRIBUIDORA NORTE', fechaEntrega:t},
+  ];
+}
+
+function seedBancosEjemplo() {
+  DATA.bancosMovimientos = [];
+  // Saldos manuales ya cargados por usuario — no se sobreescriben desde seed
+}
+
+function seedPrestamosEjemplo() {
+  DATA.prestamos = [
+    {id:gid(), entidad:'Banco Galicia', mto:45000000, cuotas: Array.from({length:12},(_,i)=>({num:i+1, fecha:addDays(today(),i*30-60), monto:4200000, pagada:i<2}))},
+    {id:gid(), entidad:'Banco Chubut', mto:25000000, cuotas: Array.from({length:18},(_,i)=>({num:i+1, fecha:addDays(today(),i*30-30), monto:1600000, pagada:i<1}))},
+  ];
+}
+
+// ══════════════════════════════════════════════════════
+//  AUTO-REFRESH
+//  • Re-render de la vista activa: cada 2 segundos
+//  • Sincronización con Google Sheets: cada 5 minutos
+// ══════════════════════════════════════════════════════
+
+const AR_RENDER_INTERVAL = 2;    // segundos — re-render UI con datos en memoria
+const AR_SYNC_INTERVAL   = 30;   // segundos — fetch real desde Google Sheets (mínimo práctico)
+
+let _arRender   = null;   // setInterval re-render
+let _arSync     = null;   // setInterval sync Sheets
+let _arCountdown = null;  // setInterval countdown visual
+let _arSecondsLeft = 0;
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+
+  const indicator = document.getElementById('autorefresh-indicator');
+  const cdEl      = document.getElementById('autorefresh-countdown');
+  if(indicator) indicator.style.display = 'inline';
+
+  _arSecondsLeft = AR_SYNC_INTERVAL;
+
+  // ── Re-render cada 2 segundos (datos en memoria, sin fetch) ──
+  _arRender = setInterval(() => {
+    if(!SESSION) return;
+    const activePage = document.querySelector('.page.active');
+    if(!activePage) return;
+    const id = activePage.id.replace('page-','');
+    const renders = {
+      inicio:renderInicio, facturas:renderFact, cheques:renderCheques,
+      prestamos:renderLoans, bancos:renderBancos, flujo:renderFlujo
+    };
+    if(renders[id]) renders[id]();
+  }, AR_RENDER_INTERVAL * 1000);
+
+  // ── Countdown visual (actualiza cada segundo) ──
+  _arCountdown = setInterval(() => {
+    _arSecondsLeft--;
+    if(cdEl) {
+      const m = Math.floor(_arSecondsLeft / 60);
+      const s = String(_arSecondsLeft % 60).padStart(2,'0');
+      cdEl.textContent = `${m}:${s}`;
+    }
+    if(_arSecondsLeft <= 0) _arSecondsLeft = AR_SYNC_INTERVAL;
+  }, 1000);
+
+  // ── Sync con Google Sheets cada 5 minutos ──
+  _arSync = setInterval(async () => {
+    if(!SESSION) return;
+    _arSecondsLeft = AR_SYNC_INTERVAL;
+    syncLog('⏱ Auto-sync: actualizando desde Google Sheets...', 'info');
+    await syncAll();
+  }, AR_SYNC_INTERVAL * 1000);
+}
+
+function stopAutoRefresh() {
+  if(_arRender)   { clearInterval(_arRender);   _arRender=null;   }
+  if(_arSync)     { clearInterval(_arSync);     _arSync=null;     }
+  if(_arCountdown){ clearInterval(_arCountdown);_arCountdown=null; }
+  const indicator = document.getElementById('autorefresh-indicator');
+  if(indicator) indicator.style.display = 'none';
+}
+
+
+
+async function doLogin() {
+  const email = document.getElementById('inp-u').value.trim();
+  const pass  = document.getElementById('inp-p').value;
+  const errEl = document.getElementById('login-err');
+  errEl.style.display = 'none';
+
+  if(!email || !pass) { errEl.textContent='Completá email y contraseña.'; errEl.style.display='block'; return; }
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if(error || !data.user) {
+    errEl.textContent = 'Email o contraseña incorrectos.';
+    errEl.style.display = 'block';
+    return;
+  }
+  _startSession(data.user);
+}
+
+function _startSession(user) {
+  const meta = user.user_metadata || {};
+  SESSION = {
+    user: user.email,
+    rol:  meta.rol  || 'readonly',
+    name: meta.name || user.email.split('@')[0],
+  };
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('sb-un').textContent = SESSION.name;
+  document.getElementById('sb-rl').textContent = SESSION.rol;
+  document.getElementById('sb-av').textContent = SESSION.name[0].toUpperCase();
+
+  loadBancosManual();
+  buildWeekSel();
+  currentWeekKey = weekKey(today());
+
+  document.getElementById('loading-ov').classList.remove('hidden');
+  document.getElementById('loading-msg').textContent = 'Cargando configuración compartida...';
+
+  // Cargar config desde Supabase (async) antes de sincronizar Sheets
+  loadConfig().then(() => {
+    document.getElementById('loading-msg').textContent = 'Conectando con Google Sheets...';
+    return syncAll();
+  }).then(() => {
+    document.getElementById('loading-ov').classList.add('hidden');
+    nav('inicio');
+    startAutoRefresh();
+  });
+}
+
+async function doLogout(){
+  stopAutoRefresh(); // ← detener auto-refresh al salir
+  await sb.auth.signOut();
+  SESSION = null;
+  DATA = {clientes:[],cheques:[],chequesEmitidos:[],sueldos:[],impuestos:[],bancos:[],bancosMovimientos:[],prestamos:[],bancosManual:{galicia:0,chubut:0,macro:0,mpTrelew:0,mpMadryn:0,efectivo:0},localEdits:{},syncStatus:{},lastSync:null};
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('inp-u').value = '';
+  document.getElementById('inp-p').value = '';
+}
+
+// Restaurar sesión si ya estaba autenticado
+sb.auth.getSession().then(({ data: { session } }) => {
+  if(session && session.user) _startSession(session.user);
+});
+
+// Escuchar cambios de sesión
+sb.auth.onAuthStateChange((event, session) => {
+  if(event === 'SIGNED_OUT') doLogout();
+});
+
+document.getElementById('inp-p').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+function canWrite(){return SESSION&&SESSION.rol!=='readonly';}
+function canDel(){return SESSION&&SESSION.rol==='admin';}
+
+// ══════════════════════════════════════════════════════
+//  SIDEBAR / NAV
+// ══════════════════════════════════════════════════════
+
+const sidebar=document.getElementById('sidebar');
+const sbTrigger=document.getElementById('sb-trigger');
+sbTrigger.addEventListener('mouseenter',()=>sidebar.classList.add('open'));
+sidebar.addEventListener('mouseleave',()=>sidebar.classList.remove('open'));
+function toggleSidebar(){sidebar.classList.toggle('open');}
+document.addEventListener('click',e=>{if(!sidebar.contains(e.target)&&e.target.className!=='sb-toggle'&&!sbTrigger.contains(e.target))sidebar.classList.remove('open');});
+
+const TITLES={inicio:'Inicio',facturas:'Facturas / Clientes',cheques:'Cheques',prestamos:'Préstamos',bancos:'Bancos y Saldos',flujo:'Flujo Proyectado',calculadora:'Calculadora de Viabilidad',sheets:'Conexión Google Sheets'};
+
+function nav(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+page+"'"))n.classList.add('active');});
+  document.getElementById('topbar-title').textContent=TITLES[page]||page;
+  sidebar.classList.remove('open');
+  const renders={inicio:renderInicio,facturas:renderFact,cheques:renderCheques,prestamos:renderLoans,bancos:renderBancos,flujo:renderFlujo,calculadora:renderCalculadora,sheets:renderSheetsPage};
+  if(renders[page]) renders[page]();
+}
+
+function closeM(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// ══════════════════════════════════════════════════════
+//  WEEK SELECTOR
+// ══════════════════════════════════════════════════════
+
+function buildWeekSel(){
+  const sel=document.getElementById('week-sel');
+  const now=today();
+  const dow=(now.getDay()+6)%7;
+  const mon=new Date(now); mon.setDate(now.getDate()-dow);
+  const opts=[];
+  for(let i=-4;i<20;i++){
+    const s=new Date(mon); s.setDate(mon.getDate()+i*7);
+    const k=weekKey(s);
+    const [w,yr]=k.split('_');
+    opts.push(`<option value="${k}"${k===weekKey(now)?' selected':''}>Semana ${w} / ${yr} — desde ${s.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</option>`);
+  }
+  sel.innerHTML=opts.join('');
+}
+
+function changeWeek(){currentWeekKey=document.getElementById('week-sel').value;currentDayMode=false;document.getElementById('day-sel').value='';renderInicio();}
+function changeDay(){const v=document.getElementById('day-sel').value;if(!v){currentDayMode=false;renderInicio();return;}currentWeekKey=weekKey(new Date(v+'T12:00:00'));currentDayMode=true;renderInicio();}
+function resetWeek(){currentWeekKey=weekKey(today());currentDayMode=false;document.getElementById('day-sel').value='';buildWeekSel();renderInicio();}
+
+// ══════════════════════════════════════════════════════
+//  INICIO — CASHFLOW TABLE
+// ══════════════════════════════════════════════════════
+
+function getUltimosSaldos() {
+  const b = DATA.bancosManual;
+  const total = (b.galicia||0)+(b.chubut||0)+(b.macro||0)+(b.mpTrelew||0)+(b.mpMadryn||0)+(b.efectivo||0);
+  return {...b, total};
+}
+
+function getCajaPorSemana(semKey) {
+  return getUltimosSaldos().total;
+}
+
+function renderInicio(){
+  const wk = currentWeekKey||weekKey(today());
+  const ws = weekStart(wk); const we = weekEnd(wk);
+  const [w,yr] = wk.split('_');
+
+  let rangeStart=ws, rangeEnd=we, label=`Semana ${w} / ${yr}`, modeBadge='Semanal';
+  const dayV=document.getElementById('day-sel').value;
+  if(currentDayMode&&dayV){
+    rangeStart=new Date(dayV+'T00:00:00'); rangeEnd=new Date(dayV+'T23:59:59');
+    label=`Día: ${fmtDate(rangeStart)}`;
+    modeBadge='Diario';
+  }
+  document.getElementById('week-badge').textContent=`Sem ${w}`;
+  document.getElementById('cf-label').textContent=`Flujo de caja — ${label}`;
+  document.getElementById('cf-mode').textContent=modeBadge;
+
+  const saldos = getUltimosSaldos();
+  const bancos = (saldos.galicia||0)+(saldos.chubut||0)+(saldos.macro||0);
+  const mp = (saldos.mpTrelew||0)+(saldos.mpMadryn||0);
+  const efectivo = (saldos.efectivo||0);
+  const caja = saldos.total;
+
+  // FC a cobrar en el período (solo Fc, solo pendientes, usando semCashFlow)
+  const fcPeriod = DATA.clientes.filter(f => {
+    if(f.tipo!=='Fc') return false;
+    if(f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
+    const fc = cobroEstimado(f);
+    if(!fc) return false;
+    return fc>=rangeStart&&fc<=rangeEnd;
+  });
+  const montoFc = fcPeriod.reduce((a,f)=>a+f.monto,0);
+
+  // Cheques recibidos en período — excluir los ya entregados a terceros (entregadoA + fechaEntrega)
+  const cheqR = DATA.cheques.filter(c => {
+    if(!c.fechaPago) return false;
+    if(c.entregadoA && c.entregadoA.trim()!=='' && c.fechaEntrega!=null) return false;
+    return c.fechaPago >= rangeStart && c.fechaPago <= rangeEnd;
+  });
+  const montoChR = cheqR.reduce((a,c)=>a+c.monto,0);
+
+  // Cheques emitidos en período (egreso en fechaVto)
+  const cheqEmitPeriod = DATA.chequesEmitidos.filter(c => {
+    if(!c.fechaVto) return false;
+    return c.fechaVto >= rangeStart && c.fechaVto <= rangeEnd;
+  });
+  const montoChEmit = cheqEmitPeriod.reduce((a,c)=>a+c.importe,0);
+
+  // Cheques recibidos y entregados (egreso en fechaPago)
+  const cheqEPeriod = DATA.cheques.filter(c => {
+    if(!c.entregadoA || !c.fechaPago) return false;
+    return c.fechaPago >= rangeStart && c.fechaPago <= rangeEnd;
+  });
+  const montoChE = cheqEPeriod.reduce((a,c)=>a+c.monto,0);
+
+  // Sueldos en período
+  const sueldosPer = DATA.sueldos.filter(s=>s.fechaPago&&s.fechaPago>=rangeStart&&s.fechaPago<=rangeEnd);
+  const montoSueldos = sueldosPer.reduce((a,s)=>a+s.monto,0);
+
+  // Impuestos y planes en período
+  const impPer = DATA.impuestos.filter(x=>x.fechaPago&&x.fechaPago>=rangeStart&&x.fechaPago<=rangeEnd);
+  const montoImp = impPer.reduce((a,x)=>a+x.monto,0);
+
+  // Préstamos: cuotas en período
+  let totalCuotas=0;
+  DATA.prestamos.forEach(p=>{
+    (p.cuotas||[]).forEach(c=>{
+      if(!c.pagada&&c.fecha&&c.fecha>=rangeStart&&c.fecha<=rangeEnd) totalCuotas+=c.monto;
+    });
+  });
+
+  const totalIngresos = montoFc + montoChR;
+  const totalEgresos = montoChEmit + montoChE + totalCuotas + montoSueldos + montoImp;
+  const flujoNeto = totalIngresos - totalEgresos;
+  const posicion_final = caja + flujoNeto;
+
+  function cfRow(label,val,cls='',sub=false,section=false){
+    if(section) return `<tr class="cf-section"><td colspan="2">${label}</td></tr>`;
+    if(val===null||val===undefined||val==='') return `<tr class="${cls}"><td class="${sub?'cf-sub':''}">${label}</td><td></td></tr>`;
+    const vCls = typeof val==='number'&&val>0?'text-g':typeof val==='number'&&val<0?'text-red':'';
+    return `<tr class="${cls}"><td class="${sub?'cf-sub':''}">${label}</td><td class="${vCls} tr">${typeof val==='number'?fmtM(val):val}</td></tr>`;
+  }
+
+  let html='';
+  html+=cfRow('POSICIÓN INICIAL','','',false,true);
+  html+=cfRow('Bancos (Galicia + Chubut + Macro)',bancos);
+  html+=cfRow('Mercado Pago (Trelew + Madryn)',mp);
+  html+=cfRow('Efectivo',efectivo);
+  html+=cfRow('Total Posición Inicial',caja,'cf-total cf-highlight');
+  html+=cfRow('INGRESOS','','',false,true);
+  html+=cfRow(`Facturas a cobrar — FC (${fcPeriod.length})`,montoFc);
+  if(montoChR>0) html+=cfRow(`Cheques recibidos (${cheqR.length})`,montoChR);
+  html+=cfRow('Total Ingresos',totalIngresos,'cf-total');
+  html+=cfRow('EGRESOS','','',false,true);
+  if(montoChEmit>0) html+=cfRow(`Cheques emitidos (${cheqEmitPeriod.length})`,montoChEmit);
+  if(montoChE>0) html+=cfRow(`Cheques recibidos entregados (${cheqEPeriod.length})`,montoChE);
+  if(montoSueldos>0) html+=cfRow(`Sueldos (${sueldosPer.length})`,montoSueldos);
+  if(montoImp>0) html+=cfRow(`Impuestos y planes (${impPer.length})`,montoImp);
+  if(totalCuotas>0) html+=cfRow('Cuotas préstamos',totalCuotas);
+  html+=cfRow('Total Egresos',totalEgresos,'cf-total');
+  html+=cfRow('RESULTADO','','',false,true);
+  html+=`<tr class="cf-total"><td><strong>Flujo neto del período</strong></td><td class="${flujoNeto>=0?'cf-pos':'cf-neg'} tr">${fmtM(flujoNeto)}</td></tr>`;
+  html+=`<tr class="cf-total cf-highlight"><td><strong>🏁 Posición final proyectada</strong></td><td class="${posicion_final>=0?'cf-pos':'cf-neg'} tr" style="font-size:15px;font-weight:900">${fmtM(posicion_final)}</td></tr>`;
+  document.getElementById('cf-table').innerHTML=html;
+
+  // Alerts
+  const now=today();
+  const vencidas=DATA.clientes.filter(f=>{
+    if(f.tipo!=='Fc'||f.estadoCobranza==='COBRADO') return false;
+    const fc=cobroEstimado(f); return fc&&fc<now;
+  });
+  let alertsHTML='';
+  if(vencidas.length) alertsHTML+=`<div class="alert alert-danger">⚠️ <strong>${vencidas.length} FC vencidas</strong> sin cobrar · ${fmtM(vencidas.reduce((a,f)=>a+f.monto,0))}</div>`;
+  if(posicion_final<0) alertsHTML+=`<div class="alert alert-danger">🚨 Posición final proyectada <strong>negativa</strong>: ${fmtM(posicion_final)}</div>`;
+  if(DATA.lastSync) alertsHTML+=`<div class="alert alert-success">🔗 Datos de Google Sheets · Última sync: ${DATA.lastSync.toLocaleTimeString('es-AR')}</div>`;
+  document.getElementById('inicio-alerts').innerHTML=alertsHTML;
+
+  // KPIs
+  document.getElementById('inicio-kpis').innerHTML=`
+    <div class="kpi g"><div class="kpi-lbl">Caja Total</div><div class="kpi-val">${fmtM(caja)}</div><div class="kpi-sub">Todas las cuentas</div></div>
+    <div class="kpi g"><div class="kpi-lbl">FC a cobrar</div><div class="kpi-val">${fmtM(montoFc)}</div><div class="kpi-sub">${fcPeriod.length} factura${fcPeriod.length!==1?'s':''}</div></div>
+    <div class="kpi o"><div class="kpi-lbl">Cheques emitidos</div><div class="kpi-val">${fmtM(montoChEmit)}</div><div class="kpi-sub">A vencer este período</div></div>
+    <div class="kpi r"><div class="kpi-lbl">Sueldos</div><div class="kpi-val">${fmtM(montoSueldos)}</div><div class="kpi-sub">A pagar este período</div></div>
+    <div class="kpi r"><div class="kpi-lbl">Impuestos y planes</div><div class="kpi-val">${fmtM(montoImp)}</div><div class="kpi-sub">Vencen este período</div></div>
+    <div class="kpi ${flujoNeto>=0?'g':'r'}"><div class="kpi-lbl">Flujo neto</div><div class="kpi-val ${flujoNeto>=0?'text-g':'text-red'}">${fmtM(flujoNeto)}</div><div class="kpi-sub">Ingresos − Egresos</div></div>
+    <div class="kpi ${posicion_final>=0?'g':'r'}"><div class="kpi-lbl">Posición final</div><div class="kpi-val ${posicion_final>=0?'text-g':'text-red'}">${fmtM(posicion_final)}</div><div class="kpi-sub">Proyectada</div></div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════
+//  FACTURAS
+// ══════════════════════════════════════════════════════
+
+function renderFact(){
+  const tipo=document.getElementById('ff-tipo').value;
+  const est=document.getElementById('ff-est').value;
+  const sem=document.getElementById('ff-sem').value;
+  const q=document.getElementById('ff-q').value.toLowerCase();
+  const now=today();
+
+  // Build semana filter options
+  const sems=[...new Set(DATA.clientes.map(f=>f.semCashFlow).filter(Boolean))].sort();
+  const semSel=document.getElementById('ff-sem');
+  const curSem=semSel.value;
+  semSel.innerHTML='<option value="">Todas las semanas</option>'+sems.map(s=>`<option value="${s}"${s===curSem?' selected':''}>${s}</option>`).join('');
+
+  let list=[...DATA.clientes].sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
+  if(tipo) list=list.filter(f=>f.tipo===tipo);
+  if(est) list=list.filter(f=>f.estadoCobranza===est);
+  if(sem) list=list.filter(f=>f.semCashFlow===sem);
+  if(q) list=list.filter(f=>f.cliente.toLowerCase().includes(q)||f.numero.toLowerCase().includes(q));
+
+  // KPIs
+  const pending=list.filter(f=>f.tipo==='Fc'&&f.estadoCobranza==='PENDIENTE');
+  const cobradas=list.filter(f=>f.estadoCobranza==='COBRADO');
+  document.getElementById('fact-kpis').innerHTML=`
+    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(pending.reduce((a,f)=>a+f.monto,0))}</div><div class="kpi-sub">${pending.length} facturas</div></div>
+    <div class="kpi g"><div class="kpi-lbl">Cobradas</div><div class="kpi-val">${fmtM(cobradas.reduce((a,f)=>a+f.monto,0))}</div><div class="kpi-sub">${cobradas.length} facturas</div></div>
+    <div class="kpi"><div class="kpi-lbl">Total cartera</div><div class="kpi-val">${fmtM(list.filter(f=>f.tipo==='Fc').reduce((a,f)=>a+f.monto,0))}</div><div class="kpi-sub">${list.filter(f=>f.tipo==='Fc').length} FC</div></div>
+  `;
+
+  const eMap={PENDIENTE:'b-orange',COBRADO:'b-green',INCOBRABLE:'b-red','SALDO A FAVOR':'b-purple'};
+  const tMap={Fc:'b-blue',Rc:'b-gray',Nc:'b-purple',An:'b-orange',Pe:'b-teal'};
+  const body=document.getElementById('fact-body');
+
+  if(!list.length){
+    body.innerHTML=`<tr><td colspan="9"><div class="empty-st"><div class="ico">🔍</div><p>Sin resultados</p></div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML=list.slice(0,500).map(f=>{
+    const fc=cobroEstimado(f);
+    const dias=fc?Math.round((fc-now)/86400000):null;
+    const diasStr=dias===null?'-':dias<0?`<span class="text-red">${dias}d</span>`:`${dias}d`;
+    const origenBadge=f.fuenteExcel
+      ? `<span class="badge b-teal" style="font-size:9px;margin-left:4px">XLS</span>`
+      : '';
+    const edit=canWrite()?`<button class="btn btn-sm btn-secondary" onclick="openFactEdit('${f.id}')">✏️</button>`:'';
+    return `<tr>
+      <td><strong>${f.cliente}</strong>${origenBadge}<br><span class="font-mono" style="font-size:10px;color:var(--gray-300)">${f.codigo}</span></td>
+      <td><span class="badge ${tMap[f.tipo]||'b-gray'}">${f.tipo}${f.letra?'-'+f.letra:''}</span></td>
+      <td class="font-mono">${f.numero}</td>
+      <td>${fmtDate(f.fechaEmision)}</td>
+      <td>${fmtDate(fc)}</td>
+      <td><span class="badge b-blue">${f.semCashFlow||'-'}</span></td>
+      <td class="tr font-bold">${fmtM(f.monto)}</td>
+      <td><span class="badge ${eMap[f.estadoCobranza]||'b-gray'}">${f.estadoCobranza}</span></td>
+      <td>${diasStr}</td>
+      <td>${edit}</td>
+    </tr>`;
+  }).join('');
+  if(list.length>500) body.innerHTML+=`<tr><td colspan="9" style="text-align:center;font-size:12px;color:var(--gray-500);padding:12px">Mostrando 500 de ${list.length} registros. Usá los filtros para acotar.</td></tr>`;
+}
+
+function openFactEdit(id){
+  if(!canWrite()) return;
+  const f=DATA.clientes.find(x=>x.id===id);if(!f)return;
+  const edit=DATA.localEdits[id]||{};
+  document.getElementById('mfe-id').value=id;
+  document.getElementById('mfe-cli').value=f.cliente;
+  document.getElementById('mfe-est').value=edit.estadoCobranza||f.estadoCobranza;
+  document.getElementById('mfe-fecha').value=edit.fechaCobro||(f.fechaCobroAcordada?toISO(f.fechaCobroAcordada):'');
+  document.getElementById('mfe-sem').value=edit.semCashFlow||f.semCashFlow||'';
+  document.getElementById('modal-fact-edit').classList.add('open');
+}
+function saveFactEdit(){
+  const id=document.getElementById('mfe-id').value;
+  const nuevaFechaCobro = document.getElementById('mfe-fecha').value;
+  const semOverride     = document.getElementById('mfe-sem').value.trim();
+  const nuevoEstado     = document.getElementById('mfe-est').value;
+
+  DATA.localEdits[id]={
+    estadoCobranza: nuevoEstado,
+    fechaCobro:     nuevaFechaCobro,
+    semCashFlow:    semOverride,
+  };
+
+  // Aplicar al objeto en memoria
+  const f=DATA.clientes.find(x=>x.id===id);
+  if(f){
+    if(nuevoEstado)    f.estadoCobranza=nuevoEstado;
+    if(nuevaFechaCobro){
+      const dCobro = new Date(nuevaFechaCobro+'T12:00:00');
+      f.fechaCobroAcordada = dCobro;
+      // Recalcular semCashFlow si no hay override manual
+      if(!semOverride) f.semCashFlow = weekKey(dCobro);
+    }
+    if(semOverride)    f.semCashFlow=semOverride;
+  }
+  closeM('modal-fact-edit');
+  renderFact();
+  renderInicio(); // actualizar flujo proyectado
+}
+
+// ══════════════════════════════════════════════════════
+//  CHEQUES
+// ══════════════════════════════════════════════════════
+
+let cheqTab = 'recibidos';
+
+function switchCheqTab(tab, btn) {
+  cheqTab = tab;
+  document.querySelectorAll('#page-cheques .view-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('cheq-recibidos-view').style.display = tab==='recibidos'?'block':'none';
+  document.getElementById('cheq-emitidos-view').style.display  = tab==='emitidos'?'block':'none';
+  const btnNuevo = document.getElementById('btn-nuevo-cheque');
+  if(tab==='recibidos') {
+    btnNuevo.textContent='➕ Nuevo cheque recibido';
+    btnNuevo.setAttribute('onclick','openChequeModal()');
+    renderCheques();
+  } else {
+    btnNuevo.textContent='➕ Nuevo cheque emitido';
+    btnNuevo.setAttribute('onclick','openChequesEmitidoModal()');
+    renderChequesEmitidos();
+  }
+}
+
+function renderChequesEmitidos() {
+  const q = (document.getElementById('cheq-emit-filter')||{}).value||'';
+  const now = today();
+  const pendientes = DATA.chequesEmitidos.filter(c=>c.fechaVto&&c.fechaVto>=now);
+  const totalPend  = pendientes.reduce((a,c)=>a+c.importe,0);
+  const totalTotal = DATA.chequesEmitidos.reduce((a,c)=>a+c.importe,0);
+  document.getElementById('cheq-emit-kpis').innerHTML=`
+    <div class="kpi r"><div class="kpi-lbl">Pendientes</div><div class="kpi-val">${fmtM(totalPend)}</div><div class="kpi-sub">${pendientes.length} cheque/s a vencer</div></div>
+    <div class="kpi"><div class="kpi-lbl">Total emitido</div><div class="kpi-val">${fmtM(totalTotal)}</div><div class="kpi-sub">${DATA.chequesEmitidos.length} cheques</div></div>
+  `;
+  const filtrados = q
+    ? DATA.chequesEmitidos.filter(c=>[c.numero,c.beneficiario].join(' ').toLowerCase().includes(q.toLowerCase()))
+    : DATA.chequesEmitidos;
+  const sorted = [...filtrados].sort((a,b)=>(a.fechaVto||0)-(b.fechaVto||0));
+  document.getElementById('cheq-emit-body').innerHTML = sorted.map(c=>{
+    const vencido = c.fechaVto && c.fechaVto < now;
+    return `<tr${vencido?' style="background:var(--red-light)"':''}>
+      <td>${fmtDate(c.fechaEmision)}</td>
+      <td>${fmtDate(c.fechaVto)}${vencido?'<span class="badge b-red" style="margin-left:6px;font-size:10px">Vencido</span>':''}</td>
+      <td class="font-mono"><strong>${c.numero||'-'}</strong></td>
+      <td>${c.beneficiario||'-'}</td>
+      <td class="tr font-bold text-red">${fmtM(c.importe)}</td>
+      <td><div class="row-acts">
+        <button class="btn btn-secondary btn-sm" onclick="editChequesEmitido('${c.id}')">✏️</button>
+        ${canDel()?`<button class="btn btn-danger btn-sm" onclick="deleteChequesEmitido('${c.id}')">🗑</button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="6"><div class="empty-st"><div class="ico">💸</div><p>Sin cheques emitidos${q?' para "'+q+'"':''}</p></div></td></tr>`;
+}
+
+function openChequesEmitidoModal() {
+  document.getElementById('emit-edit-id').value='';
+  document.getElementById('emit-numero').value='';
+  document.getElementById('emit-beneficiario').value='';
+  document.getElementById('emit-fecha-emision').value='';
+  document.getElementById('emit-fecha-vencimiento').value='';
+  document.getElementById('emit-importe').value='';
+  document.getElementById('emit-modal-err').style.display='none';
+  document.getElementById('modal-emit-title').textContent='Nuevo cheque emitido';
+  document.getElementById('modal-cheque-emit').classList.add('open');
+}
+
+function editChequesEmitido(id) {
+  const c = DATA.chequesEmitidos.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('emit-edit-id').value=id;
+  document.getElementById('emit-numero').value=c.numero||'';
+  document.getElementById('emit-beneficiario').value=c.beneficiario||'';
+  document.getElementById('emit-fecha-emision').value=c.fechaEmision?toISO(c.fechaEmision):'';
+  document.getElementById('emit-fecha-vencimiento').value=c.fechaVto?toISO(c.fechaVto):'';
+  document.getElementById('emit-importe').value=c.importe||'';
+  document.getElementById('emit-modal-err').style.display='none';
+  document.getElementById('modal-emit-title').textContent='Editar cheque emitido';
+  document.getElementById('modal-cheque-emit').classList.add('open');
+}
+
+function saveChequesEmitido() {
+  const errEl = document.getElementById('emit-modal-err');
+  errEl.style.display='none';
+  const numero      = document.getElementById('emit-numero').value.trim();
+  const beneficiario= document.getElementById('emit-beneficiario').value.trim();
+  const fEmision    = document.getElementById('emit-fecha-emision').value;
+  const fVto        = document.getElementById('emit-fecha-vencimiento').value;
+  const importe     = parseFloat(document.getElementById('emit-importe').value)||0;
+  if(!numero)       { errEl.textContent='El número es obligatorio.';    errEl.style.display='block'; return; }
+  if(!fVto)         { errEl.textContent='La fecha de vencimiento es obligatoria.'; errEl.style.display='block'; return; }
+  if(importe<=0)    { errEl.textContent='El importe debe ser mayor a 0.'; errEl.style.display='block'; return; }
+  if(!beneficiario) { errEl.textContent='El beneficiario es obligatorio.'; errEl.style.display='block'; return; }
+  const editId = document.getElementById('emit-edit-id').value;
+  const obj = {
+    id:           editId||gid(),
+    fechaEmision: fEmision?new Date(fEmision+'T12:00:00'):null,
+    fechaVto:     fVto?new Date(fVto+'T12:00:00'):null,
+    numero,
+    beneficiario,
+    importe,
+  };
+  if(editId) {
+    const idx=DATA.chequesEmitidos.findIndex(c=>c.id===editId);
+    if(idx>=0) DATA.chequesEmitidos[idx]=obj;
+  } else {
+    DATA.chequesEmitidos.push(obj);
+  }
+  closeM('modal-cheque-emit');
+  renderChequesEmitidos();
+}
+
+function deleteChequesEmitido(id) {
+  if(!confirm('¿Eliminar este cheque emitido?')) return;
+  DATA.chequesEmitidos=DATA.chequesEmitidos.filter(c=>c.id!==id);
+  renderChequesEmitidos();
+}
+
+function renderCheques(){
+  const q   = (document.getElementById('cheq-filter')||{}).value||'';
+  const now = today();
+
+  // Un cheque está "entregado a terceros" cuando tiene AMBOS: entregadoA Y fechaEntrega
+  // Solo esos se ocultan de la tabla principal
+  const estaEntregado = c =>
+    c.entregadoA && c.entregadoA.trim() !== '' &&
+    c.fechaEntrega != null;
+
+  // Solo cheques A COBRAR (no entregados)
+  const aCobrar   = DATA.cheques.filter(c => !estaEntregado(c));
+  const totCobrar = aCobrar.reduce((a,c) => a+c.monto, 0);
+
+  // KPI: solo A cobrar + total visible
+  document.getElementById('cheq-kpis').innerHTML=`
+    <div class="kpi g"><div class="kpi-lbl">A cobrar</div><div class="kpi-val">${fmtM(totCobrar)}</div><div class="kpi-sub">${aCobrar.length} cheque/s</div></div>
+    <div class="kpi"><div class="kpi-lbl">Total registros</div><div class="kpi-val">${aCobrar.length}</div><div class="kpi-sub">pendientes de cobro</div></div>
+  `;
+
+  // Filtro de búsqueda — solo sobre los A cobrar
+  const filtrados = q
+    ? aCobrar.filter(c=>[c.numeroCheque,c.bancoEmisor,c.firmante,c.recibidoDe].join(' ').toLowerCase().includes(q.toLowerCase()))
+    : aCobrar;
+
+  // Tabla — sin columnas Entregado a / Fecha entrega (no aplican a esta vista)
+  document.getElementById('cheq-body').innerHTML = filtrados.map(c=>{
+    const vencido = c.fechaPago && c.fechaPago < now;
+    const proximo = c.fechaPago && !vencido && (c.fechaPago - now) < 7*86400000;
+    const estadoBadge = vencido
+      ? `<span class="badge b-red"    style="font-size:10px">Vencido</span>`
+      : proximo
+        ? `<span class="badge b-orange" style="font-size:10px">Próximo</span>`
+        : `<span class="badge b-green"  style="font-size:10px">A cobrar</span>`;
+    const rowBg = vencido ? 'style="background:var(--red-light)"'
+                : proximo ? 'style="background:var(--orange-light)"'
+                : '';
+    return `<tr ${rowBg}>
+      <td>${estadoBadge}</td>
+      <td class="font-mono"><strong>${c.numeroCheque||'-'}</strong></td>
+      <td>${c.bancoEmisor||'<span style="color:var(--gray-300)">—</span>'}</td>
+      <td>${c.firmante||'<span style="color:var(--gray-300)">—</span>'}</td>
+      <td>${c.recibidoDe||'<span style="color:var(--gray-300)">—</span>'}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${fmtDate(c.fechaEmision)}</td>
+      <td>${fmtDate(c.fechaPago)}</td>
+      <td class="tr font-bold text-g">${fmtM(c.monto)}</td>
+      <td><div class="row-acts">
+        <button class="btn btn-secondary btn-sm" onclick="editCheque('${c.id}')">✏️</button>
+        ${canDel()?`<button class="btn btn-danger btn-sm" onclick="deleteCheque('${c.id}')">🗑</button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('')||`<tr><td colspan="9"><div class="empty-st"><div class="ico">📝</div><p>Sin cheques a cobrar${q?' para "'+q+'"':''}</p></div></td></tr>`;
+}
+
+function openChequeModal(id){
+  document.getElementById('cheq-edit-id').value='';
+  document.getElementById('cheq-numero').value='';
+  document.getElementById('cheq-banco').value='';
+  document.getElementById('cheq-firmante').value='';
+  document.getElementById('cheq-recibido-de').value='';
+  document.getElementById('cheq-entregado-a').value='';
+  document.getElementById('cheq-fecha-emision').value='';
+  document.getElementById('cheq-fecha-pago').value='';
+  document.getElementById('cheq-monto').value='';
+  document.getElementById('cheq-fecha-entrega').value='';
+  document.getElementById('cheq-modal-err').style.display='none';
+  document.getElementById('modal-cheque-title').textContent='Nuevo cheque';
+  document.getElementById('modal-cheque').classList.add('open');
+}
+
+function editCheque(id){
+  const c=DATA.cheques.find(x=>x.id===id);
+  if(!c) return;
+  document.getElementById('cheq-edit-id').value=id;
+  document.getElementById('cheq-numero').value=c.numeroCheque||'';
+  document.getElementById('cheq-banco').value=c.bancoEmisor||'';
+  document.getElementById('cheq-firmante').value=c.firmante||'';
+  document.getElementById('cheq-recibido-de').value=c.recibidoDe||'';
+  document.getElementById('cheq-entregado-a').value=c.entregadoA||'';
+  document.getElementById('cheq-fecha-emision').value=c.fechaEmision?toISO(c.fechaEmision):'';
+  document.getElementById('cheq-fecha-pago').value=c.fechaPago?toISO(c.fechaPago):'';
+  document.getElementById('cheq-monto').value=c.monto||'';
+  document.getElementById('cheq-fecha-entrega').value=c.fechaEntrega?toISO(c.fechaEntrega):'';
+  document.getElementById('cheq-modal-err').style.display='none';
+  document.getElementById('modal-cheque-title').textContent='Editar cheque';
+  document.getElementById('modal-cheque').classList.add('open');
+}
+
+function saveCheque(){
+  const errEl=document.getElementById('cheq-modal-err');
+  errEl.style.display='none';
+
+  const numero   = document.getElementById('cheq-numero').value.trim();
+  const banco    = document.getElementById('cheq-banco').value.trim();
+  const firmante = document.getElementById('cheq-firmante').value.trim();
+  const recibDe  = document.getElementById('cheq-recibido-de').value.trim();
+  const entregA  = document.getElementById('cheq-entregado-a').value.trim();
+  const fEmision = document.getElementById('cheq-fecha-emision').value;
+  const fPago    = document.getElementById('cheq-fecha-pago').value;
+  const monto    = parseFloat(document.getElementById('cheq-monto').value)||0;
+  const fEntrega = document.getElementById('cheq-fecha-entrega').value;
+
+  if(!numero)      { errEl.textContent='El N° de cheque es obligatorio.'; errEl.style.display='block'; return; }
+  if(!fPago)       { errEl.textContent='La fecha de vencimiento es obligatoria.'; errEl.style.display='block'; return; }
+  if(monto<=0)     { errEl.textContent='El importe debe ser mayor a 0.'; errEl.style.display='block'; return; }
+
+  const editId=document.getElementById('cheq-edit-id').value;
+
+  // Validar duplicado (por número, excluyendo el propio en edición)
+  const dup=DATA.cheques.find(c=>c.numeroCheque===numero&&c.id!==editId);
+  if(dup){ errEl.textContent=`Ya existe un cheque con N° ${numero}.`; errEl.style.display='block'; return; }
+
+  const obj={
+    id:           editId||gid(),
+    numeroCheque: numero,
+    bancoEmisor:  banco,
+    firmante,
+    recibidoDe:   recibDe,
+    entregadoA:   entregA,
+    fechaEmision: fEmision?new Date(fEmision+'T12:00:00'):null,
+    fechaPago:    fPago?new Date(fPago+'T12:00:00'):null,
+    monto,
+    fechaEntrega: fEntrega?new Date(fEntrega+'T12:00:00'):null,
+  };
+
+  if(editId){
+    const idx=DATA.cheques.findIndex(c=>c.id===editId);
+    if(idx>=0) DATA.cheques[idx]=obj;
+  } else {
+    DATA.cheques.push(obj);
+  }
+
+  closeM('modal-cheque');
+  renderCheques();
+}
+
+function deleteCheque(id){
+  if(!confirm('¿Eliminar este cheque?')) return;
+  DATA.cheques=DATA.cheques.filter(c=>c.id!==id);
+  renderCheques();
+}
+
+// ══════════════════════════════════════════════════════
+//  PRÉSTAMOS
+// ══════════════════════════════════════════════════════
+
+function renderLoans(){
+  const totalCap=DATA.prestamos.reduce((a,p)=>a+p.mto,0);
+  const totalPend=DATA.prestamos.reduce((a,p)=>a+(p.cuotas||[]).filter(c=>!c.pagada).reduce((b,c)=>b+c.monto,0),0);
+  document.getElementById('loan-kpis').innerHTML=`
+    <div class="kpi p"><div class="kpi-lbl">Capital total</div><div class="kpi-val">${fmtM(totalCap)}</div><div class="kpi-sub">${DATA.prestamos.length} préstamos</div></div>
+    <div class="kpi r"><div class="kpi-lbl">Cuotas pendientes</div><div class="kpi-val">${fmtM(totalPend)}</div><div class="kpi-sub">Total a pagar</div></div>
+  `;
+  document.getElementById('loan-list').innerHTML=DATA.prestamos.map(p=>{
+    const cuotasPend=(p.cuotas||[]).filter(c=>!c.pagada);
+    const totalP=cuotasPend.reduce((a,c)=>a+c.monto,0);
+    const prox=cuotasPend[0];
+    return `<div style="background:var(--white);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:14px;border-left:4px solid var(--purple)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div>
+          <div style="font-size:15px;font-weight:800;margin-bottom:4px">🏛️ ${p.entidad}</div>
+          <div style="font-size:12px;color:var(--gray-500)">Capital: ${fmtM(p.mto)} · ${(p.cuotas||[]).length} cuotas · ${cuotasPend.length} pendientes</div>
+          ${prox?`<div style="font-size:12px;color:var(--orange);margin-top:4px">Próxima cuota: ${fmtDate(prox.fecha)} · ${fmtM(prox.monto)}</div>`:''}
+          <div style="font-size:12px;color:var(--red);font-weight:700;margin-top:2px">Saldo pendiente: ${fmtM(totalP)}</div>
+        </div>
+        <span class="badge b-green">Activo</span>
+      </div>
+      <div style="margin-top:12px;overflow-x:auto">
+        <table style="font-size:12px"><thead><tr><th>N°</th><th>Vencimiento</th><th>Monto</th><th>Estado</th></tr></thead>
+        <tbody>${(p.cuotas||[]).slice(0,12).map(c=>`<tr>
+          <td>${c.num}</td><td>${fmtDate(c.fecha)}</td>
+          <td class="tr">${fmtM(c.monto)}</td>
+          <td><span class="badge ${c.pagada?'b-green':'b-orange'}">${c.pagada?'Pagada':'Pendiente'}</span></td>
+        </tr>`).join('')}</tbody></table>
+        ${(p.cuotas||[]).length>12?`<div style="font-size:11px;color:var(--gray-500);padding:6px">... y ${(p.cuotas||[]).length-12} cuotas más</div>`:''}
+      </div>
+    </div>`;
+  }).join('')||`<div class="empty-st"><div class="ico">🏛️</div><p>Sin préstamos cargados. Configurá el GID de la pestaña Préstamos en "Google Sheets".</p></div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  BANCOS
+// ══════════════════════════════════════════════════════
+
+function renderBancos(){
+  const s = getUltimosSaldos();
+  const bancos = (s.galicia||0)+(s.chubut||0)+(s.macro||0);
+  const mp = (s.mpTrelew||0)+(s.mpMadryn||0);
+  document.getElementById('banco-kpis').innerHTML=`
+    <div class="kpi g"><div class="kpi-lbl">Total caja</div><div class="kpi-val">${fmtM(s.total)}</div><div class="kpi-sub">Todas las cuentas</div></div>
+    <div class="kpi"><div class="kpi-lbl">Banco Galicia</div><div class="kpi-val">${fmtM(s.galicia||0)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Banco Chubut</div><div class="kpi-val">${fmtM(s.chubut||0)}</div></div>
+    <div class="kpi"><div class="kpi-lbl">Banco Macro</div><div class="kpi-val">${fmtM(s.macro||0)}</div></div>
+    <div class="kpi t"><div class="kpi-lbl">Mercado Pago</div><div class="kpi-val">${fmtM(mp)}</div><div class="kpi-sub">Trelew + Madryn</div></div>
+    <div class="kpi g"><div class="kpi-lbl">Efectivo</div><div class="kpi-val">${fmtM(s.efectivo||0)}</div></div>
+  `;
+
+  const ACCS=[
+    {k:'galicia', name:'Banco Galicia',       icon:'🔴', cls:'galicia'},
+    {k:'chubut',  name:'Banco Chubut',        icon:'🔵', cls:'chubut'},
+    {k:'macro',   name:'Banco Macro',         icon:'🟡', cls:''},
+    {k:'mpTrelew',name:'Mercado Pago Trelew', icon:'💳', cls:'mp'},
+    {k:'mpMadryn',name:'Mercado Pago Madryn', icon:'💳', cls:'mp'},
+    {k:'efectivo',name:'Efectivo',            icon:'💵', cls:'efectivo'},
+  ];
+
+  document.getElementById('banco-cards').innerHTML=ACCS.map(a=>`
+    <div class="acc-card ${a.cls}" style="cursor:pointer" onclick="focusBancoEdit('bm-${a.k}')">
+      <div class="acc-icon">${a.icon}</div>
+      <div class="acc-name">${a.name}</div>
+      <div class="acc-bal">${fmtM(s[a.k]||0)}</div>
+      <div class="acc-source">✏️ Carga manual</div>
+    </div>`).join('');
+
+  // Formulario de carga manual
+  document.getElementById('banco-manual-form').style.display='block';
+  ACCS.forEach(a=>{
+    const el=document.getElementById('bm-'+a.k);
+    if(el) el.value = s[a.k]||0;
+  });
+
+  const movs = [...(DATA.bancosMovimientos||[])].sort((a,b)=>(b.fecha||0)-(a.fecha||0)).slice(0,50);
+  document.getElementById('banco-body').innerHTML = movs.length
+    ? movs.map(m=>`<tr>
+        <td>${fmtDate(m.fecha)}</td>
+        <td>${m.banco}</td>
+        <td><span class="badge ${m.tipo==='Ingreso'?'b-green':'b-red'}">${m.tipo}</span></td>
+        <td style="color:var(--gray-500);font-size:12px">${m.descripcion||'-'}</td>
+        <td class="tr font-bold ${m.tipo==='Ingreso'?'text-g':'text-red'}">${m.tipo==='Ingreso'?'+':'−'}${fmtM(m.monto)}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="5"><div class="empty-st"><div class="ico">🏦</div><p>Sin movimientos importados</p></div></td></tr>`;
+}
+
+function focusBancoEdit(id){
+  const el=document.getElementById(id);
+  if(el){ el.focus(); el.select(); document.getElementById('banco-manual-form').scrollIntoView({behavior:'smooth'}); }
+}
+
+function saveBancosManual(){
+  const keys=['galicia','chubut','macro','mpTrelew','mpMadryn','efectivo'];
+  keys.forEach(k=>{
+    const el=document.getElementById('bm-'+k);
+    if(el) DATA.bancosManual[k]=parseFloat(el.value)||0;
+  });
+  try{ localStorage.setItem('gomatex_bancosManual',JSON.stringify(DATA.bancosManual)); }catch(e){}
+  renderBancos();
+  renderInicio();
+  alert('✅ Saldos guardados correctamente.');
+}
+
+function loadBancosManual(){
+  try{
+    const saved=localStorage.getItem('gomatex_bancosManual');
+    if(saved) DATA.bancosManual={...DATA.bancosManual,...JSON.parse(saved)};
+  }catch(e){}
+}
+
+// ══════════════════════════════════════════════════════
+//  FLUJO PROYECTADO
+// ══════════════════════════════════════════════════════
+
+function switchFlujoView(v,btn){
+  flujoView=v;
+  document.querySelectorAll('#page-flujo .view-tabs .tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFlujo();
+}
+
+function getFlujoPeriod(start,end){
+  // ── Ingresos ──────────────────────────────────────────
+  // Facturas pendientes: ingreso en fecha estimada de cobro
+  const fc=DATA.clientes.filter(f=>{
+    if(f.tipo!=='Fc'||f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
+    const c=cobroEstimado(f); return c&&c>=start&&c<=end;
+  });
+  // Cheques recibidos: solo los que NO están entregados a terceros son ingreso nuestro.
+  // "Entregado" = tiene entregadoA Y fechaEntrega ambos cargados.
+  const cheqIng=DATA.cheques.filter(c=>{
+    if(!c.fechaPago||c.fechaPago<start||c.fechaPago>end) return false;
+    const entregado = c.entregadoA && c.entregadoA.trim()!=='' && c.fechaEntrega!=null;
+    return !entregado;
+  });
+
+  // ── Egresos ───────────────────────────────────────────
+  // Cheques emitidos: egreso en fecha de vencimiento
+  const cheqEmit=DATA.chequesEmitidos.filter(c=>c.fechaVto&&c.fechaVto>=start&&c.fechaVto<=end);
+  // Cuotas de préstamos pendientes de pago
+  const cuotas=DATA.prestamos.reduce((sum,p)=>{
+    return sum+(p.cuotas||[]).filter(c=>!c.pagada&&c.fecha&&c.fecha>=start&&c.fecha<=end).reduce((a,c)=>a+c.monto,0);
+  },0);
+  // Sueldos
+  const sueldosPeriod=DATA.sueldos.filter(s=>s.fechaPago&&s.fechaPago>=start&&s.fechaPago<=end).reduce((a,s)=>a+s.monto,0);
+  // Impuestos y planes
+  const impuestosPeriod=DATA.impuestos.filter(x=>x.fechaPago&&x.fechaPago>=start&&x.fechaPago<=end).reduce((a,x)=>a+x.monto,0);
+
+  const ing=fc.reduce((a,f)=>a+f.monto,0)+cheqIng.reduce((a,c)=>a+c.monto,0);
+  const egr=cheqEmit.reduce((a,c)=>a+c.importe,0)+cuotas+sueldosPeriod+impuestosPeriod;
+  return {ing,egr,fcCant:fc.length,sueldosPeriod,impuestosPeriod,cheqEmitTotal:cheqEmit.reduce((a,c)=>a+c.importe,0),cuotas};
+}
+
+function renderFlujo(){
+  const alerts=document.getElementById('flujo-alerts');
+  alerts.innerHTML='';
+  const wrap=document.getElementById('flujo-wrap');
+
+  if(flujoView==='semanal'){
+    const weeks=getWeeks(8);
+    let thead='<thead><tr><th>Concepto</th>';
+    weeks.forEach(w=>{const[wn]=w.key.split('_');thead+=`<th>Sem ${wn}<br><span style="font-weight:400;font-size:10px">${w.start.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</span></th>`;});
+    thead+='</tr></thead>';
+    const ings=[],egrs=[],pos=[],sueldosW=[],impW=[],cheqEmitW=[],cuotasW=[];
+    let saldo_acc = getUltimosSaldos().total;
+    const initSaldo = saldo_acc;
+    weeks.forEach(w=>{
+      const{ing,egr,sueldosPeriod,impuestosPeriod,cheqEmitTotal,cuotas}=getFlujoPeriod(w.start,w.end);
+      saldo_acc+=ing-egr; ings.push(ing);egrs.push(egr);pos.push(saldo_acc);
+      sueldosW.push(sueldosPeriod||0);impW.push(impuestosPeriod||0);
+      cheqEmitW.push(cheqEmitTotal||0);cuotasW.push(cuotas||0);
+      if(saldo_acc<0) alerts.innerHTML+=`<div class="alert alert-danger">🚨 Sem ${w.key}: posición negativa <strong>${fmtM(saldo_acc)}</strong></div>`;
+    });
+    let tbody='<tbody>';
+    tbody+=`<tr><td class="font-bold">💰 Saldo inicial</td>${weeks.map((_,i)=>`<td class="tr">${fmtM(i===0?initSaldo:pos[i-1])}</td>`).join('')}</tr>`;
+    tbody+=`<tr><td class="font-bold text-g">📥 Ingresos (FC + Cheques)</td>${ings.map(v=>`<td class="tr text-g">${fmtM(v)}</td>`).join('')}</tr>`;
+    tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Cheques emitidos</td>${cheqEmitW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
+    tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Sueldos</td>${sueldosW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
+    tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Impuestos y planes</td>${impW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
+    tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Cuotas préstamos</td>${cuotasW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
+    tbody+=`<tr><td class="font-bold text-red">📤 Total Egresos</td>${egrs.map(v=>`<td class="tr text-red">${fmtM(v)}</td>`).join('')}</tr>`;
+    tbody+=`<tr style="border-top:2px solid var(--gray-200)"><td class="font-bold" style="font-size:14px">🏁 Posición final</td>${pos.map(v=>`<td class="tr" style="font-weight:900;color:${v>=0?'var(--green)':'var(--red)'}">${fmtM(v)}</td>`).join('')}</tr>`;
+    tbody+='</tbody>';
+    wrap.innerHTML=`<table>${thead+tbody}</table>`;
+
+  } else if(flujoView==='diario'){
+    let saldo=getUltimosSaldos().total;
+    let html='<table><thead><tr><th>Fecha</th><th>Día</th><th>Ingresos</th><th>Egresos</th><th>Posición</th></tr></thead><tbody>';
+    for(let i=0;i<30;i++){
+      const d=addDays(today(),i);
+      const s=new Date(d);s.setHours(0,0,0,0);
+      const e=new Date(d);e.setHours(23,59,59,999);
+      const{ing,egr}=getFlujoPeriod(s,e);
+      saldo+=ing-egr;
+      html+=`<tr${saldo<0?' style="background:var(--red-light)"':''}>
+        <td>${d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})}</td>
+        <td style="font-size:12px;color:var(--gray-500)">${d.toLocaleDateString('es-AR',{weekday:'short'})}</td>
+        <td class="tr ${ing>0?'text-g':''}">${ing>0?fmtM(ing):'-'}</td>
+        <td class="tr ${egr>0?'text-red':''}">${egr>0?fmtM(egr):'-'}</td>
+        <td class="tr font-bold" style="color:${saldo>=0?'var(--green)':'var(--red)'}">${fmtM(saldo)}</td>
+      </tr>`;
+    }
+    html+='</tbody></table>';
+    wrap.innerHTML=html;
+
+  } else {
+    let saldo=getUltimosSaldos().total;
+    let html='<table><thead><tr><th>Mes</th><th>Ingresos</th><th>Egresos</th><th>Flujo neto</th><th>Posición</th></tr></thead><tbody>';
+    const now=today();
+    for(let i=0;i<6;i++){
+      const s=new Date(now.getFullYear(),now.getMonth()+i,1);
+      const e=new Date(now.getFullYear(),now.getMonth()+i+1,0,23,59,59);
+      const{ing,egr}=getFlujoPeriod(s,e);
+      const neto=ing-egr; saldo+=neto;
+      html+=`<tr>
+        <td class="font-bold">${s.toLocaleDateString('es-AR',{month:'long',year:'numeric'})}</td>
+        <td class="tr text-g">${fmtM(ing)}</td>
+        <td class="tr text-red">${fmtM(egr)}</td>
+        <td class="tr font-bold" style="color:${neto>=0?'var(--green)':'var(--red)'}">${fmtM(neto)}</td>
+        <td class="tr font-bold" style="color:${saldo>=0?'var(--green)':'var(--red)'}">${fmtM(saldo)}</td>
+      </tr>`;
+    }
+    html+='</tbody></table>';
+    wrap.innerHTML=html;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  SHEETS PAGE
+// ══════════════════════════════════════════════════════
+
+function renderSheetsPage(){
+  updateSheetsPanel();
+  loadConfigUI();
+}
+
+// ══════════════════════════════════════════════════════
+//  CONFIG — guardado en Supabase (compartido entre PCs)
+//  con fallback a localStorage si la tabla no existe
+// ══════════════════════════════════════════════════════
+
+const CONFIG_TABLE = 'gomatex_config'; // tabla en Supabase
+
+// Lee config desde Supabase → devuelve true si tuvo éxito
+async function loadConfigFromSupabase() {
+  try {
+    const { data, error } = await sb.from(CONFIG_TABLE).select('key, value');
+    if (error || !data || !data.length) return false;
+    data.forEach(row => {
+      if (Object.prototype.hasOwnProperty.call(CONFIG, row.key)) {
+        CONFIG[row.key] = row.value || '';
+      }
+    });
+    return true;
+  } catch(e) { return false; }
+}
+
+// Guarda config en Supabase → devuelve true si tuvo éxito
+async function saveConfigToSupabase() {
+  try {
+    const rows = Object.entries(CONFIG).map(([key, value]) => ({
+      key, value: value || '', updated_at: new Date().toISOString()
+    }));
+    const { error } = await sb.from(CONFIG_TABLE).upsert(rows, { onConflict: 'key' });
+    return !error;
+  } catch(e) { return false; }
+}
+
+// Carga config: primero Supabase (compartido), luego localStorage (local)
+async function loadConfig() {
+  const fromCloud = await loadConfigFromSupabase();
+  if (!fromCloud) {
+    // Fallback: localStorage de esta PC
+    try {
+      const saved = localStorage.getItem('gomatex_config');
+      if (saved) CONFIG = { ...CONFIG, ...JSON.parse(saved) };
+    } catch(e) {}
+  }
+  // Marcar origen para mostrarlo en la UI
+  CONFIG._source = fromCloud ? 'cloud' : 'local';
+}
+
+// Guarda config: siempre en Supabase + localStorage como caché
+async function saveConfig() {
+  CONFIG.gidCheqEmit  = document.getElementById('cfg-gid-cheq-emit').value  || '';
+  CONFIG.gidCheqRecib = document.getElementById('cfg-gid-cheq-recib').value || '';
+  CONFIG.gidSueldos   = document.getElementById('cfg-gid-sueldos').value    || '';
+  CONFIG.gidImpuestos = document.getElementById('cfg-gid-impuestos').value  || '';
+  CONFIG.gidPrestamos = document.getElementById('cfg-gid-prestamos').value  || '';
+  CONFIG.gidClientes  = document.getElementById('cfg-gid-clientes').value   || '';
+
+  // Guardar siempre en localStorage como caché local
+  try { localStorage.setItem('gomatex_config', JSON.stringify(CONFIG)); } catch(e) {}
+
+  // Guardar en Supabase (compartido entre todas las PCs)
+  const cfgStatus = document.getElementById('cfg-cloud-status');
+  if (cfgStatus) cfgStatus.innerHTML = `<span style="color:var(--orange)">☁️ Guardando en la nube...</span>`;
+
+  const savedToCloud = await saveConfigToSupabase();
+  CONFIG._source = savedToCloud ? 'cloud' : 'local';
+
+  if (savedToCloud) {
+    if (cfgStatus) cfgStatus.innerHTML = `<span class="badge b-green">☁️ Guardado en la nube — todas las PCs lo verán automáticamente</span>`;
+    syncLog('☁️ Configuración guardada en Supabase (compartida)', 'ok');
+  } else {
+    if (cfgStatus) cfgStatus.innerHTML = `<span class="badge b-orange">⚠️ Guardado solo localmente — creá la tabla en Supabase para compartir</span>`;
+    syncLog('⚠️ Config guardada solo en localStorage (tabla Supabase no encontrada)', 'warn');
+  }
+}
+
+function loadConfigUI() {
+  document.getElementById('cfg-gid-cheq-emit').value  = CONFIG.gidCheqEmit  || '';
+  document.getElementById('cfg-gid-cheq-recib').value = CONFIG.gidCheqRecib || '';
+  document.getElementById('cfg-gid-sueldos').value    = CONFIG.gidSueldos   || '';
+  document.getElementById('cfg-gid-impuestos').value  = CONFIG.gidImpuestos || '';
+  document.getElementById('cfg-gid-prestamos').value  = CONFIG.gidPrestamos || '';
+  document.getElementById('cfg-gid-clientes').value   = CONFIG.gidClientes  || '';
+
+  // Mostrar origen de la config
+  const cfgStatus = document.getElementById('cfg-cloud-status');
+  if (cfgStatus) {
+    cfgStatus.innerHTML = CONFIG._source === 'cloud'
+      ? `<span class="badge b-green">☁️ Config cargada desde la nube (compartida entre PCs)</span>`
+      : `<span class="badge b-orange">💾 Config cargada desde esta PC (localStorage)</span>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CALCULADORA DE VIABILIDAD
+// ══════════════════════════════════════════════════════
+
+function renderCalculadora(){
+  const res=document.getElementById('calc-resultado');
+  if(res) res.style.display='none';
+}
+
+function calcularViabilidad(){
+  const tipo  = document.getElementById('calc-tipo').value;
+  const fecha = document.getElementById('calc-fecha').value;
+  const monto = parseNum(document.getElementById('calc-monto').value);
+  const desc  = document.getElementById('calc-desc').value.trim();
+
+  if(!fecha || monto<=0){
+    alert('Completá la fecha y el monto para continuar.');
+    return;
+  }
+
+  const fechaD    = new Date(fecha+'T12:00:00');
+  const semImpact = weekKey(fechaD);
+  const saldoBase = getUltimosSaldos().total;
+
+  // Proyectar semana a semana (12 semanas)
+  const semanas = getWeeks(12);
+  let saldo_acc = saldoBase;
+  let riskWeek = null, riskSaldo = Infinity;
+  const filas = [];
+
+  semanas.forEach(w => {
+    const {ing, egr, fcCant, sueldosPeriod, impuestosPeriod, cheqEmitTotal, cuotas} = getFlujoPeriod(w.start, w.end);
+    let extraEgr=0, extraIng=0;
+    if(w.key===semImpact){
+      if(tipo==='egreso') extraEgr=monto;
+      else               extraIng=monto;
+    }
+    const ingTotal = ing + extraIng;
+    const egrTotal = egr + extraEgr;
+    saldo_acc += ingTotal - egrTotal;
+    filas.push({
+      key:w.key, start:w.start,
+      ing:ingTotal, egr:egrTotal,
+      fcCant, sueldos:sueldosPeriod||0, impuestos:impuestosPeriod||0,
+      cheqEmit:cheqEmitTotal||0, cuotas:cuotas||0,
+      extraIng, extraEgr,
+      pos:saldo_acc,
+      hasMovimiento: w.key===semImpact,
+    });
+    if(saldo_acc<riskSaldo){ riskSaldo=saldo_acc; riskWeek=w.key; }
+  });
+
+  // Proyección sin movimiento (para comparar)
+  let saldo0=saldoBase;
+  const pos0={};
+  getWeeks(12).forEach(w=>{
+    const{ing,egr}=getFlujoPeriod(w.start,w.end);
+    saldo0+=ing-egr; pos0[w.key]=saldo0;
+  });
+
+  const saldoEnSem = filas.find(r=>r.key===semImpact)?.pos??saldoBase;
+  const viable     = riskSaldo>=0;
+  const [wn,yr]    = semImpact.split('_');
+
+  let html = `
+  <div class="card" style="border-left:4px solid ${viable?'var(--green)':'var(--red)'}">
+    <div class="card-hdr">
+      <span class="card-title" style="font-size:15px">${viable?'✅ VIABLE':'🚨 NO VIABLE — RIESGO DE FONDOS'}</span>
+      <span class="badge ${viable?'b-green':'b-red'}">${tipo==='egreso'?'Egreso':'Ingreso'} — ${fmtM(monto)}</span>
+    </div>
+    <div style="padding:16px 18px">
+      <div class="kpi-grid" style="margin-bottom:16px">
+        <div class="kpi ${saldoBase>=0?'g':'r'}">
+          <div class="kpi-lbl">Saldo disponible hoy</div>
+          <div class="kpi-val">${fmtM(saldoBase)}</div>
+          <div class="kpi-sub">Todas las cuentas</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-lbl">Semana de impacto</div>
+          <div class="kpi-val" style="font-size:16px">Sem ${wn} / ${yr}</div>
+          <div class="kpi-sub">${fechaD.toLocaleDateString('es-AR')}</div>
+        </div>
+        <div class="kpi ${saldoEnSem>=0?'g':'r'}">
+          <div class="kpi-lbl">Posición sem. ${wn} con movimiento</div>
+          <div class="kpi-val ${saldoEnSem>=0?'text-g':'text-red'}">${fmtM(saldoEnSem)}</div>
+        </div>
+        <div class="kpi ${riskSaldo>=0?'g':'r'}">
+          <div class="kpi-lbl">Posición mínima proyectada</div>
+          <div class="kpi-val ${riskSaldo>=0?'text-g':'text-red'}">${fmtM(riskSaldo)}</div>
+          <div class="kpi-sub">Sem ${riskWeek||'—'}</div>
+        </div>
+      </div>`;
+
+  if(!viable){
+    const semsNeg = filas.filter(r=>r.pos<0);
+    html+=`<div class="alert alert-danger">🚨 El movimiento genera saldo negativo en ${semsNeg.length} semana/s. 
+      Mayor riesgo: Semana ${riskWeek} → ${fmtM(riskSaldo)}</div>`;
+  } else {
+    html+=`<div class="alert alert-success">✅ El movimiento es viable. La posición se mantiene positiva durante las 12 semanas proyectadas.</div>`;
+  }
+  if(desc) html+=`<div class="alert alert-info">📝 ${desc}</div>`;
+
+  // Tabla detallada por semana
+  html+=`<div style="overflow-x:auto;margin-top:14px">
+    <table>
+      <thead><tr>
+        <th>Semana</th><th>Desde</th>
+        <th class="tr" style="color:var(--green)">FC a cobrar</th>
+        <th class="tr" style="color:var(--green)">Cheques rec.</th>
+        <th class="tr" style="color:var(--red)">Chq. emit.</th>
+        <th class="tr" style="color:var(--red)">Sueldos</th>
+        <th class="tr" style="color:var(--red)">Impuestos</th>
+        <th class="tr" style="color:var(--red)">Préstamos</th>
+        ${tipo==='egreso'?'<th class="tr" style="color:var(--red)">Movimiento</th>':'<th class="tr" style="color:var(--green)">Movimiento</th>'}
+        <th class="tr">Posición</th>
+        <th class="tr" style="font-size:11px;color:var(--gray-500)">Sin movimiento</th>
+      </tr></thead>
+      <tbody>`;
+
+  filas.forEach(r=>{
+    const [ww] = r.key.split('_');
+    const sinMov = pos0[r.key]??0;
+    // Desglosar ingresos en FC vs cheqRecib
+    const {ing:ingBase}=getFlujoPeriod(r.start, new Date(r.start.getTime()+6*86400000+86399999));
+    // calcular FC cobrar y cheq recibidos por separado
+    const ws=r.start; const we=new Date(ws.getTime()+7*86400000-1);
+    const fcCobrar=DATA.clientes.filter(f=>{
+      if(f.tipo!=='Fc'||f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
+      const c=cobroEstimado(f); return c&&c>=ws&&c<=we;
+    }).reduce((a,f)=>a+f.monto,0);
+    const cheqRec=DATA.cheques.filter(c=>c.fechaPago&&c.fechaPago>=ws&&c.fechaPago<=we&&!(c.entregadoA&&c.entregadoA.trim()!==''&&c.fechaEntrega!=null)).reduce((a,c)=>a+c.monto,0);
+
+    html+=`<tr ${r.hasMovimiento?'style="background:var(--blue-light)"':r.pos<0?'style="background:var(--red-light)"':''}>
+      <td class="font-bold">${r.hasMovimiento?'⚡ ':''}Sem ${ww}</td>
+      <td style="font-size:12px;color:var(--gray-500)">${r.start.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</td>
+      <td class="tr" style="font-size:12px;color:var(--green)">${fcCobrar>0?fmtM(fcCobrar):'-'}</td>
+      <td class="tr" style="font-size:12px;color:var(--green)">${cheqRec>0?fmtM(cheqRec):'-'}</td>
+      <td class="tr" style="font-size:12px;color:var(--red)">${r.cheqEmit>0?fmtM(r.cheqEmit):'-'}</td>
+      <td class="tr" style="font-size:12px;color:var(--red)">${r.sueldos>0?fmtM(r.sueldos):'-'}</td>
+      <td class="tr" style="font-size:12px;color:var(--red)">${r.impuestos>0?fmtM(r.impuestos):'-'}</td>
+      <td class="tr" style="font-size:12px;color:var(--red)">${r.cuotas>0?fmtM(r.cuotas):'-'}</td>
+      <td class="tr" style="font-size:12px;font-weight:700;color:${tipo==='egreso'?'var(--red)':'var(--green)'}">${r.hasMovimiento?fmtM(monto):'-'}</td>
+      <td class="tr font-bold" style="color:${r.pos>=0?'var(--green)':'var(--red)'}">${fmtM(r.pos)}</td>
+      <td class="tr" style="font-size:11px;color:var(--gray-500)">${fmtM(sinMov)}</td>
+    </tr>`;
+  });
+
+  html+=`</tbody></table></div></div></div>`;
+
+  const res=document.getElementById('calc-resultado');
+  if(res){ res.innerHTML=html; res.style.display='block'; res.scrollIntoView({behavior:'smooth',block:'start'}); }
+}
+
+
+
+function exportExcel(){
+  if(!XLSX){ alert('Librería xlsx no disponible.'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // Hoja 1: Facturas
+  const factRows=[['Cliente','Tipo','Número','Emisión','Cobro est.','Sem CF','Monto','Estado']];
+  DATA.clientes.forEach(f=>{
+    const fc=cobroEstimado(f);
+    factRows.push([f.cliente,f.tipo,f.numero,f.fechaEmision?toISO(f.fechaEmision):'',fc?toISO(fc):'',f.semCashFlow||'',f.monto,f.estadoCobranza]);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(factRows),'Facturas');
+
+  // Hoja 2: Cheques recibidos
+  const cheqRows=[['numero_cheque','recibido_de','fecha_pago','fecha_emision','banco_emisor','monto','entregado_a','fecha_entrega']];
+  DATA.cheques.forEach(c=>cheqRows.push([
+    c.numeroCheque, c.recibidoDe||'',
+    c.fechaPago?toISO(c.fechaPago):'',
+    c.fechaEmision?toISO(c.fechaEmision):'',
+    c.bancoEmisor||'', c.monto, c.entregadoA||'',
+    c.fechaEntrega?toISO(c.fechaEntrega):'',
+  ]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(cheqRows),'Cheques Recibidos');
+
+  // Hoja 3: Cheques emitidos
+  const emitRows=[['fecha_emision','fecha_vencimiento','numero','beneficiario','importe']];
+  DATA.chequesEmitidos.forEach(c=>emitRows.push([
+    c.fechaEmision?toISO(c.fechaEmision):'',
+    c.fechaVto?toISO(c.fechaVto):'',
+    c.numero||'', c.beneficiario||'', c.importe,
+  ]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(emitRows),'Cheques Emitidos');
+
+  // Hoja 4: Sueldos
+  const sueldoRows=[['nombre','cargo','fecha_pago','monto','descripcion']];
+  DATA.sueldos.forEach(s=>sueldoRows.push([
+    s.nombre||'', s.cargo||'',
+    s.fechaPago?toISO(s.fechaPago):'',
+    s.monto, s.descripcion||'',
+  ]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sueldoRows),'Sueldos');
+
+  // Hoja 5: Impuestos
+  const impRows=[['concepto','tipo','fecha_pago','monto','descripcion']];
+  DATA.impuestos.forEach(x=>impRows.push([
+    x.concepto||'', x.tipo||'',
+    x.fechaPago?toISO(x.fechaPago):'',
+    x.monto, x.descripcion||'',
+  ]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(impRows),'Impuestos y Planes');
+
+  // Hoja 6: Bancos (saldos manuales)
+  const bancRows=[['Banco','Saldo']];
+  const bm = DATA.bancosManual;
+  [['Banco Galicia',bm.galicia],['Banco Chubut',bm.chubut],['Banco Macro',bm.macro],
+   ['MP Trelew',bm.mpTrelew],['MP Madryn',bm.mpMadryn],['Efectivo',bm.efectivo]].forEach(r=>bancRows.push(r));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(bancRows),'Bancos Saldos');
+
+  // Hoja 7: Préstamos
+  const loanRows=[['Entidad','Capital','Cuota N°','Vencimiento','Monto cuota','Estado']];
+  DATA.prestamos.forEach(p=>(p.cuotas||[]).forEach(c=>loanRows.push([p.entidad,p.mto,c.num,c.fecha?toISO(c.fecha):'',c.monto,c.pagada?'Pagada':'Pendiente'])));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(loanRows),'Préstamos');
+
+  // Hoja 8: Flujo semanal
+  const weeks=getWeeks(12);
+  const flujoRows=[['Semana','Inicio semana','Ingresos','Egresos','Sueldos','Impuestos','Cheques emitidos','Cuotas','Flujo neto','Posición']];
+  let sal=getUltimosSaldos().total;
+  weeks.forEach(w=>{
+    const{ing,egr,sueldosPeriod,impuestosPeriod,cheqEmitTotal,cuotas}=getFlujoPeriod(w.start,w.end);
+    sal+=ing-egr;
+    flujoRows.push([w.key,toISO(w.start),ing,egr,sueldosPeriod||0,impuestosPeriod||0,cheqEmitTotal||0,cuotas||0,ing-egr,sal]);
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(flujoRows),'Flujo Proyectado');
+
+  const ts=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`GOMATEX_Cashflow_${ts}.xlsx`);
+}
+</script>
+</body>
+</html>
