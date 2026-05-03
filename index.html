@@ -279,8 +279,8 @@ tbody tr:hover{background:var(--gray-50)}
     <div class="sidebar-footer">
       <div class="user-info">
         <div class="user-avatar" id="sb-av">F</div>
-        <div><div class="user-name" id="sb-un">francisco</div><div class="user-role" id="sb-rl">admin</div></div>
-        <button class="logout-btn" onclick="doLogout()" title="Salir">⏻</button>
+        <div style="flex:1"><div class="user-name" id="sb-un">francisco</div><div class="user-role" id="sb-rl">admin</div></div>
+        <button class="logout-btn" onclick="doLogout()" title="Cerrar sesión" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:6px;padding:5px 8px;font-size:13px;white-space:nowrap">⏻ Salir</button>
       </div>
     </div>
   </aside>
@@ -1923,15 +1923,19 @@ function _startSession(user) {
   });
 }
 
+let _loggingOut = false;
 async function doLogout(){
-  stopAutoRefresh(); // ← detener auto-refresh al salir
-  await sb.auth.signOut();
+  if(_loggingOut) return;
+  _loggingOut = true;
+  stopAutoRefresh();
+  try { await sb.auth.signOut(); } catch(e){}
   SESSION = null;
   DATA = {clientes:[],cheques:[],chequesEmitidos:[],sueldos:[],impuestos:[],bancos:[],bancosMovimientos:[],prestamos:[],bancosManual:{galicia:0,chubut:0,macro:0,mpTrelew:0,mpMadryn:0,efectivo:0},cargasManuales:{},localEdits:{},syncStatus:{},lastSync:null};
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('inp-u').value = '';
   document.getElementById('inp-p').value = '';
+  setTimeout(()=>{ _loggingOut = false; }, 2000);
 }
 
 // Restaurar sesión si ya estaba autenticado
