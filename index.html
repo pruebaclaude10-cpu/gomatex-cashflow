@@ -2153,7 +2153,7 @@ function buildWeekQuickBtns(){
   const now    = today();
   const dow    = (now.getDay()+6)%7;
   const mon    = new Date(now); mon.setDate(now.getDate()-dow);
-  const active = currentWeekKey||weekKey(now);
+  const active = currentWeekKey || weekKey(now);
   const btns   = [];
   for(let i=0;i<10;i++){
     const s = new Date(mon); s.setDate(mon.getDate()+i*7);
@@ -2161,43 +2161,33 @@ function buildWeekQuickBtns(){
     const [w] = k.split('_');
     const desde = s.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
     const isActive = k === active;
-    btns.push(`<button
-      data-week="${k}"
-      title="Semana ${w} — desde ${desde}"
-      style="
-        padding:5px 8px;border-radius:var(--r-sm);
-        border:2px solid ${isActive?'var(--blue)':'var(--gray-200)'};
-        background:${isActive?'var(--blue)':'var(--white)'};
-        color:${isActive?'var(--white)':'var(--gray-700)'};
-        font-weight:${isActive?'900':'700'};font-size:12px;cursor:pointer;
-        transition:.15s;white-space:nowrap;line-height:1.2;flex-shrink:0;
-        position:relative;z-index:1;
-      ">
-      <div>Sem ${w}</div>
-      <div style="font-size:9px;font-weight:500;opacity:.8">${desde}</div>
-    </button>`);
+    btns.push(
+      `<button onclick="window.jumpToWeek('${k}')" title="Semana ${w} — desde ${desde}"` +
+      ` style="padding:5px 8px;border-radius:var(--r-sm);` +
+      `border:2px solid ${isActive?'var(--blue)':'var(--gray-200)'};` +
+      `background:${isActive?'var(--blue)':'var(--white)'};` +
+      `color:${isActive?'var(--white)':'var(--gray-700)'};` +
+      `font-weight:${isActive?'900':'700'};font-size:12px;cursor:pointer;` +
+      `transition:.15s;white-space:nowrap;line-height:1.2;flex-shrink:0">` +
+      `<div>Sem ${w}</div>` +
+      `<div style="font-size:9px;font-weight:500;opacity:.8">${desde}</div>` +
+      `</button>`
+    );
   }
   container.innerHTML = btns.join('');
 }
 
-// Event delegation — un solo listener en el contenedor, fiable ante re-renders
-document.addEventListener('click', function(e){
-  const btn = e.target.closest('#week-quick-btns [data-week]');
-  if(!btn) return;
-  jumpToWeek(btn.getAttribute('data-week'));
-});
-
-function jumpToWeek(k){
+window.jumpToWeek = function(k){
   if(!k) return;
-  currentWeekKey = k;
-  currentDayMode = false;
+  currentWeekKey  = k;
+  currentDayMode  = false;
   const daySel = document.getElementById('day-sel');
   if(daySel) daySel.value = '';
   const sel = document.getElementById('week-sel');
   if(sel) sel.value = k;
   buildWeekQuickBtns();
   renderInicio();
-}
+};
 
 function changeWeek(){
   currentWeekKey=document.getElementById('week-sel').value;
