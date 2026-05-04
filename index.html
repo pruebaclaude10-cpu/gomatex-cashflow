@@ -976,9 +976,9 @@ function getWeeks(n=8) {
 
 function parseNum(s) {
   if(s===null||s===undefined||s==='') return 0;
-  if(typeof s==='number') return s;
+  if(typeof s==='number') return isNaN(s)?0:s;  // número JS directo (ej: desde XLSX raw:true)
   let str = String(s).trim().replace(/\s/g,'');
-  // Detectar formato: si hay punto Y coma, el último determina decimal
+  if(str===''||str==='-') return 0;
   const hasDot   = str.includes('.');
   const hasComma = str.includes(',');
   if(hasDot && hasComma) {
@@ -995,9 +995,10 @@ function parseNum(s) {
     // Solo coma → decimal AR: 1234,56
     str = str.replace(',','.');
   }
-  // Quitar caracteres no numéricos salvo punto y signo
+  // Quitar caracteres no numéricos salvo punto y signo negativo
   str = str.replace(/[^0-9.\-]/g,'');
-  return parseFloat(str)||0;
+  const n = parseFloat(str);
+  return isNaN(n) ? 0 : n;
 }
 
 function parseDateStr(s) {
@@ -2318,11 +2319,14 @@ function renderFact(){
   // KPIs — usar montoEfectivo para respetar negativos y ajustes
   const pending=list.filter(f=>f.tipo==='Fc'&&f.estadoCobranza==='PENDIENTE');
   const cobradas=list.filter(f=>f.estadoCobranza==='COBRADO');
-  const totalCartera = list.filter(f=>f.tipo==='Fc').reduce((a,f)=>a+montoEfectivo(f),0);
+  // Total cartera = TODOS los tipos sumados (FC suman, NC/RC negativos restan)
+  const totalCartera = list.reduce((a,f)=>a+montoEfectivo(f),0);
+  const totalPending  = pending.reduce((a,f)=>a+montoEfectivo(f),0);
+  const totalCobradas = cobradas.reduce((a,f)=>a+montoEfectivo(f),0);
   document.getElementById('fact-kpis').innerHTML=`
-    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(pending.reduce((a,f)=>a+montoEfectivo(f),0))}</div><div class="kpi-sub">${pending.length} facturas</div></div>
-    <div class="kpi g"><div class="kpi-lbl">Cobradas</div><div class="kpi-val">${fmtM(cobradas.reduce((a,f)=>a+montoEfectivo(f),0))}</div><div class="kpi-sub">${cobradas.length} facturas</div></div>
-    <div class="kpi"><div class="kpi-lbl">Total cartera</div><div class="kpi-val">${fmtM(totalCartera)}</div><div class="kpi-sub">${list.filter(f=>f.tipo==='Fc').length} FC</div></div>
+    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(totalPending)}</div><div class="kpi-sub">${pending.length} facturas</div></div>
+    <div class="kpi g"><div class="kpi-lbl">Cobradas</div><div class="kpi-val">${fmtM(totalCobradas)}</div><div class="kpi-sub">${cobradas.length} facturas</div></div>
+    <div class="kpi ${totalCartera>=0?'':'r'}"><div class="kpi-lbl">Total neto</div><div class="kpi-val">${fmtM(totalCartera)}</div><div class="kpi-sub">FC + NC + RC + ajustes</div></div>
   `;
 
   const eMap={PENDIENTE:'b-orange',COBRADO:'b-green',INCOBRABLE:'b-red','SALDO A FAVOR':'b-purple'};
@@ -2350,13 +2354,15 @@ function renderFact(){
       <td>${fmtDate(fc)}</td>
       <td><span class="badge b-blue">${f.semCashFlow||'-'}</span></td>
       <td class="tr font-bold">${(()=>{
-        if(f.montoAjustado!==undefined&&f.montoAjustado>0) {
+        const m = montoEfectivo(f);
+        if(f.montoAjustado!==undefined&&f.montoAjustado!==null&&f.montoAjustado!=='') {
           return `<span style="color:var(--orange)">${fmtM(f.montoAjustado)}</span><br><span style="font-size:10px;color:var(--gray-400);text-decoration:line-through">${fmtM(f.monto)}</span>`;
         }
         if(f.moneda==='USD') {
-          return `${fmtM(f.monto)}<br><span style="font-size:10px;color:var(--blue)">USD ${(f.montoOriginal||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})} × TC ${f.tipoCambio||'-'}</span>`;
+          const color = m<0?'var(--red)':'inherit';
+          return `<span style="color:${color}">${fmtM(m)}</span><br><span style="font-size:10px;color:var(--blue)">USD ${Math.abs(f.montoOriginal||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})} × TC ${f.tipoCambio||'-'}</span>`;
         }
-        return fmtM(f.monto);
+        return `<span style="${m<0?'color:var(--red)':'''}">${fmtM(m)}</span>`;
       })()}</td>
       <td><span class="badge ${eMap[f.estadoCobranza]||'b-gray'}">${f.estadoCobranza}</span></td>
       <td>${diasStr}</td>
