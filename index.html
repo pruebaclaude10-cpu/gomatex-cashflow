@@ -3120,6 +3120,84 @@ function getCargasEgresosSemana(start, end) {
   return total;
 }
 
+// ── Helpers de fecha en cargas manuales ──────────────────────────────────
+
+// Convierte YYYY-MM-DD → DD/MM/AA para mostrar en el campo texto
+function cargaFechaToDisplay(iso) {
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  if(!y||!m||!d) return '';
+  return `${d}/${m}/${String(y).slice(-2)}`;
+}
+
+// Convierte DD/MM/AA o DD/MM/AAAA → YYYY-MM-DD para el picker oculto
+function cargaFechaParseDisplay(txt) {
+  const clean = txt.replace(/[^0-9]/g,'');
+  if(clean.length < 6) return '';
+  const d  = clean.slice(0,2);
+  const m  = clean.slice(2,4);
+  const yy = clean.slice(4,6);
+  const yyyy = parseInt(yy) >= 0 ? '20'+yy : '';
+  if(!yyyy) return '';
+  const fecha = new Date(`${yyyy}-${m}-${d}T12:00:00`);
+  if(isNaN(fecha)) return '';
+  // Validar que día y mes sean reales
+  if(fecha.getDate()!==parseInt(d)||fecha.getMonth()+1!==parseInt(m)) return '';
+  return `${yyyy}-${m}-${d}`;
+}
+
+// Autoformatea mientras el usuario tipea: agrega / automáticamente
+function cargaFechaInput(el, key) {
+  let v = el.value.replace(/[^0-9]/g,'');
+  if(v.length > 2) v = v.slice(0,2) + '/' + v.slice(2);
+  if(v.length > 5) v = v.slice(0,5) + '/' + v.slice(5,7);
+  el.value = v;
+
+  const errEl = document.getElementById('carga-fecha-err-'+key);
+  // Intentar parsear si ya tiene 8 chars (DD/MM/AA)
+  if(v.replace(/[^0-9]/g,'').length >= 6) {
+    const iso = cargaFechaParseDisplay(v);
+    const picker = document.getElementById('carga-fecha-picker-'+key);
+    if(iso) {
+      if(picker) picker.value = iso;
+      if(errEl) errEl.style.display='none';
+      actualizarSemBadge(key, iso);
+    } else {
+      if(picker) picker.value = '';
+      if(errEl) errEl.style.display='block';
+    }
+  } else {
+    if(errEl) errEl.style.display='none';
+  }
+  actualizarTotalCargas();
+}
+
+// Al salir del campo texto: validar y formatear
+function cargaFechaBlur(el, key) {
+  const iso = cargaFechaParseDisplay(el.value);
+  const errEl = document.getElementById('carga-fecha-err-'+key);
+  const picker = document.getElementById('carga-fecha-picker-'+key);
+  if(iso) {
+    el.value = cargaFechaToDisplay(iso);
+    if(picker) picker.value = iso;
+    if(errEl) errEl.style.display='none';
+    actualizarSemBadge(key, iso);
+  } else if(el.value.trim() !== '') {
+    if(errEl) errEl.style.display='block';
+  }
+}
+
+// Cuando el usuario selecciona desde el calendario
+function cargaFechaFromPicker(pickerEl, key) {
+  const iso = pickerEl.value;
+  const txtEl = document.getElementById('carga-fecha-txt-'+key);
+  if(txtEl) txtEl.value = cargaFechaToDisplay(iso);
+  const errEl = document.getElementById('carga-fecha-err-'+key);
+  if(errEl) errEl.style.display='none';
+  actualizarSemBadge(key, iso);
+  actualizarTotalCargas();
+}
+
 function renderCargas() {
   const mesInput = document.getElementById('cargas-mes');
   if(mesInput && !mesInput.value) mesInput.value = getMesActual();
@@ -3147,9 +3225,23 @@ function renderCargas() {
         </div>
         <div>
           <label style="font-size:11px;color:var(--gray-500);font-weight:600">FECHA DE IMPACTO</label>
-          <input type="date" id="carga-fecha-${item.key}"
-            value="${val.fecha||''}" style="margin-top:4px"
-            onchange="actualizarSemBadge('${item.key}',this.value)">
+          <div style="position:relative;margin-top:4px;display:flex;gap:4px">
+            <input type="text" id="carga-fecha-txt-${item.key}"
+              placeholder="DD/MM/AA"
+              maxlength="8"
+              value="${val.fecha ? cargaFechaToDisplay(val.fecha) : ''}"
+              style="flex:1;font-family:monospace;letter-spacing:1px"
+              oninput="cargaFechaInput(this,'${item.key}')"
+              onblur="cargaFechaBlur(this,'${item.key}')">
+            <button type="button" title="Seleccionar desde calendario"
+              onclick="document.getElementById('carga-fecha-picker-${item.key}').showPicker?document.getElementById('carga-fecha-picker-${item.key}').showPicker():document.getElementById('carga-fecha-picker-${item.key}').click()"
+              style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:0 8px;cursor:pointer;font-size:14px;color:var(--gray-600)">📅</button>
+            <input type="date" id="carga-fecha-picker-${item.key}"
+              value="${val.fecha||''}"
+              style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;top:0;right:0"
+              onchange="cargaFechaFromPicker(this,'${item.key}')">
+          </div>
+          <div id="carga-fecha-err-${item.key}" style="font-size:10px;color:var(--red);margin-top:2px;display:none">Fecha inválida</div>
         </div>
       </div>
     </div>`;
@@ -3194,7 +3286,7 @@ function guardarCargas() {
   CARGAS_ITEMS.forEach(i=>{
     datos[i.key]={
       monto: parseNum(document.getElementById('carga-monto-'+i.key)?.value)||0,
-      fecha: document.getElementById('carga-fecha-'+i.key)?.value||'',
+      fecha: document.getElementById('carga-fecha-picker-'+i.key)?.value||'',
     };
   });
   DATA.cargasManuales[mes]=datos;
