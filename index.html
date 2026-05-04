@@ -905,7 +905,11 @@ const fmtDate = d => {
   const aa = String(dt.getFullYear()).slice(-2);
   return `${dd}/${mm}/${aa}`;
 };
-const fmtM = n => '$'+(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtM = n => {
+  const v = n||0;
+  const abs = Math.abs(v).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return v < 0 ? `-$${abs}` : `$${abs}`;
+};
 const gid = () => '_'+Math.random().toString(36).slice(2,9);
 
 function weekKey(d) {
@@ -1066,11 +1070,14 @@ function importarFacturasExcel(input) {
       const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
       const sheetName = wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      // raw:true para leer valores numéricos sin formatear — los dates vienen como Date
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true});
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true, defval:null});
 
-      if(!rows || rows.length < 2) {
-        showFcAlert('warning', '⚠️ El archivo no contiene datos válidos.');
+      // Filtrar filas completamente vacías
+      const rowsFilled = rows.filter(r => Array.isArray(r) && r.some(c => c !== null && c !== undefined && String(c).trim() !== ''));
+
+      if(!rowsFilled || rowsFilled.length < 1) {
+        showFcAlert('warning', '⚠️ El archivo está vacío o no contiene datos válidos.');
+        input.value = '';
         return;
       }
 
@@ -1078,22 +1085,31 @@ function importarFacturasExcel(input) {
       // A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11
       const COL = { nombre:1, fecha:2, tipo:3, letra:4, numero:5, importe:9, moneda:10, tc:11 };
 
-      // Detectar si la primera fila es encabezado (si col B es texto no numérico)
+      // Detectar si la primera fila no vacía es encabezado
       let startRow = 0;
-      for(let i=0;i<Math.min(rows.length,5);i++){
-        const b = String(rows[i][COL.nombre]||'').toLowerCase().trim();
-        const d = String(rows[i][COL.tipo]||'').toLowerCase().trim();
-        if(b.includes('nombre')||b.includes('deudor')||d.includes('tipo')||d.includes('comp')) {
+      for(let i=0;i<Math.min(rowsFilled.length,5);i++){
+        const b = String(rowsFilled[i][COL.nombre]||'').toLowerCase().trim();
+        const j = String(rowsFilled[i][COL.importe]||'').toLowerCase().trim();
+        // Es encabezado si col B tiene texto tipo "nombre/deudor" O col J tiene "total/importe/monto"
+        if(b.includes('nombre')||b.includes('deudor')||b.includes('cliente')||
+           j.includes('total')||j.includes('importe')||j.includes('monto')||j.includes('saldo')) {
           startRow = i+1; break;
         }
+      }
+
+      const dataRows = rowsFilled.slice(startRow);
+      if(dataRows.length === 0) {
+        showFcAlert('warning', '⚠️ No se encontraron filas de datos (solo encabezados).');
+        input.value = '';
+        return;
       }
 
       let creados=0, actualizados=0, errores=0;
       const errLog = [];
 
-      for(let i=startRow; i<rows.length; i++){
-        const r = rows[i];
-        const rowNum = i+1; // número de fila para reportar errores (base 1)
+      for(let i=0; i<dataRows.length; i++){
+        const r = dataRows[i];
+        const rowNum = startRow + i + 1;
 
         // ── Nombre (col B) ──────────────────────────────────────────────
         const nombre = String(r[COL.nombre]||'').trim();
@@ -2319,7 +2335,7 @@ function renderFact(){
       : '';
     const edit=canWrite()?`<button class="btn btn-sm btn-secondary" onclick="openFactEdit('${f.id}')">✏️</button>`:'';
     return `<tr>
-      <td><strong>${f.cliente}</strong>${origenBadge}<br><span class="font-mono" style="font-size:10px;color:var(--gray-300)">${f.codigo}</span></td>
+      <td><strong>${f.cliente}</strong>${origenBadge}</td>
       <td><span class="badge ${tMap[f.tipo]||'b-gray'}">${f.tipo}${f.letra?'-'+f.letra:''}</span></td>
       <td class="font-mono">${f.numero}</td>
       <td>${fmtDate(f.fechaEmision)}</td>
