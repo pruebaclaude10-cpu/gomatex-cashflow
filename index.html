@@ -297,6 +297,7 @@ tbody tr:hover{background:var(--gray-50)}
       <div class="nav-item" onclick="nav('calculadora')"><span class="icon">🧮</span> Calculadora Viabilidad</div>
       <div class="nav-lbl">Sistema</div>
       <div class="nav-item" onclick="nav('sheets')"><span class="icon">🔗</span> Google Sheets</div>
+      <div class="nav-item" onclick="nav('ajustes')"><span class="icon">⚙️</span> Ajustes</div>
     </nav>
     <div class="sidebar-footer">
       <div class="user-info">
@@ -747,6 +748,54 @@ create policy "auth_write" on gomatex_config for all    using (auth.role() = 'au
             <thead><tr id="cargas-hist-head"></tr></thead>
             <tbody id="cargas-hist-body"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+    <!-- ─── AJUSTES ─── -->
+    <div class="page" id="page-ajustes">
+      <div class="section-hdr">
+        <h2>Ajustes</h2>
+        <div class="section-hdr-actions"><span class="badge b-gray">⚙️ Configuración del sistema</span></div>
+      </div>
+      <div class="card" style="border-left:4px solid var(--red)">
+        <div class="card-hdr"><span class="card-title" style="color:var(--red)">🗑 Borrar datos manuales y de prueba</span></div>
+        <div style="padding:16px 18px">
+          <div class="alert alert-danger" style="margin-bottom:16px">
+            ⚠️ Esta acción borra <strong>únicamente</strong> los datos cargados manualmente o generados como prueba. No afecta configuración, usuarios, módulos ni datos importados desde Google Sheets.
+          </div>
+          <div style="margin-bottom:18px">
+            <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--gray-700)">Seleccioná qué querés borrar:</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                <input type="checkbox" id="aj-del-facturas" checked style="width:16px;height:16px;accent-color:var(--red)">
+                <span><strong>Facturas / Comprobantes</strong> — importados por Excel o cargados de prueba</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                <input type="checkbox" id="aj-del-bancos" checked style="width:16px;height:16px;accent-color:var(--red)">
+                <span><strong>Bancos y Saldos</strong> — saldos manuales y movimientos bancarios</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                <input type="checkbox" id="aj-del-cargas" checked style="width:16px;height:16px;accent-color:var(--red)">
+                <span><strong>Cargas Manuales Mensuales</strong> — sueldos, impuestos, tarjetas y egresos manuales</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px">
+                <input type="checkbox" id="aj-del-prueba" checked style="width:16px;height:16px;accent-color:var(--red)">
+                <span><strong>Datos de prueba del sistema</strong> — cheques, préstamos y facturas de ejemplo generados automáticamente</span>
+              </label>
+            </div>
+          </div>
+          <div id="aj-resumen" style="background:var(--gray-50);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;margin-bottom:16px;border:1px solid var(--gray-200)"></div>
+          <button class="btn btn-danger" onclick="ajustesBorrarDatos()">🗑 Borrar datos seleccionados</button>
+          <button class="btn btn-secondary" onclick="renderAjustes()" style="margin-left:8px">🔄 Actualizar resumen</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:14px;border-left:4px solid var(--green)">
+        <div class="card-hdr"><span class="card-title" style="color:var(--green)">✅ Qué NO se borra nunca</span></div>
+        <div style="padding:14px 18px;font-size:13px;color:var(--gray-700);line-height:1.9">
+          🔐 Configuración del sistema (GIDs de Google Sheets)<br>
+          👥 Usuarios y sesiones<br>
+          🏗️ Estructura y módulos del sistema<br>
+          📊 Datos sincronizados en tiempo real desde Google Sheets
         </div>
       </div>
     </div>
@@ -1993,6 +2042,7 @@ function _startSession(user) {
   loadBancosMovimientos();
   loadCargasManuales();
   buildWeekSel();
+  // Inicio siempre muestra la semana actual del calendario
   currentWeekKey = weekKey(today());
 
   const loadingEl = document.getElementById('loading-ov');
@@ -2062,7 +2112,7 @@ sidebar.addEventListener('mouseleave',()=>sidebar.classList.remove('open'));
 function toggleSidebar(){sidebar.classList.toggle('open');}
 document.addEventListener('click',e=>{if(!sidebar.contains(e.target)&&e.target.className!=='sb-toggle'&&!sbTrigger.contains(e.target))sidebar.classList.remove('open');});
 
-const TITLES={inicio:'Inicio',facturas:'Facturas / Clientes',cheques:'Cheques',prestamos:'Préstamos',bancos:'Bancos y Saldos',flujo:'Flujo Proyectado',calculadora:'Calculadora de Viabilidad',cargas:'Cargas Manuales Mensuales',sheets:'Conexión Google Sheets'};
+const TITLES={inicio:'Inicio',facturas:'Facturas / Clientes',cheques:'Cheques',prestamos:'Préstamos',bancos:'Bancos y Saldos',flujo:'Flujo Proyectado',calculadora:'Calculadora de Viabilidad',cargas:'Cargas Manuales Mensuales',sheets:'Conexión Google Sheets',ajustes:'Ajustes'};
 
 function nav(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -2071,7 +2121,7 @@ function nav(page){
   document.querySelectorAll('.nav-item').forEach(n=>{if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+page+"'"))n.classList.add('active');});
   document.getElementById('topbar-title').textContent=TITLES[page]||page;
   sidebar.classList.remove('open');
-  const renders={inicio:renderInicio,facturas:renderFact,cheques:renderCheques,prestamos:renderLoans,bancos:renderBancos,flujo:renderFlujo,calculadora:renderCalculadora,cargas:renderCargas,sheets:renderSheetsPage};
+  const renders={inicio:renderInicio,facturas:renderFact,cheques:renderCheques,prestamos:renderLoans,bancos:renderBancos,flujo:renderFlujo,calculadora:renderCalculadora,cargas:renderCargas,sheets:renderSheetsPage,ajustes:renderAjustes};
   if(renders[page]) renders[page]();
 }
 
@@ -2180,6 +2230,12 @@ function getCajaPorSemana(semKey) {
 }
 
 function renderInicio(){
+  // Inicio siempre refleja la semana del calendario correspondiente al día de hoy
+  const todayWeek = weekKey(today());
+  if(!currentWeekKey || currentWeekKey !== todayWeek) {
+    // Solo actualizar si no hay selección manual activa del usuario
+    if(!currentDayMode) currentWeekKey = todayWeek;
+  }
   const wk = currentWeekKey||weekKey(today());
   const ws = weekStart(wk); const we = weekEnd(wk);
   const [w,yr] = wk.split('_');
@@ -2251,8 +2307,8 @@ function renderInicio(){
 
   const totalIngresos = montoFc + montoChR;
   const totalEgresos = montoChEmit + montoChE + totalCuotas + montoSueldos + montoImp;
+  // Resultado neto de la semana (independiente — sin arrastre de saldo anterior)
   const flujoNeto = totalIngresos - totalEgresos;
-  const posicion_final = caja + flujoNeto;
 
   function cfRow(label,val,cls='',sub=false,section=false){
     if(section) return `<tr class="cf-section"><td colspan="2">${label}</td></tr>`;
@@ -2279,8 +2335,7 @@ function renderInicio(){
   if(totalCuotas>0) html+=cfRow('Cuotas préstamos',totalCuotas);
   html+=cfRow('Total Egresos',totalEgresos,'cf-total');
   html+=cfRow('RESULTADO','','',false,true);
-  html+=`<tr class="cf-total"><td><strong>Flujo neto del período</strong></td><td class="${flujoNeto>=0?'cf-pos':'cf-neg'} tr">${fmtM(flujoNeto)}</td></tr>`;
-  html+=`<tr class="cf-total cf-highlight"><td><strong>🏁 Posición final proyectada</strong></td><td class="${posicion_final>=0?'cf-pos':'cf-neg'} tr" style="font-size:15px;font-weight:900">${fmtM(posicion_final)}</td></tr>`;
+  html+=`<tr class="cf-total cf-highlight"><td><strong>🏁 Resultado neto de la semana</strong></td><td class="${flujoNeto>=0?'cf-pos':'cf-neg'} tr" style="font-size:15px;font-weight:900">${fmtM(flujoNeto)}</td></tr>`;
   document.getElementById('cf-table').innerHTML=html;
 
   // Alerts
@@ -2291,7 +2346,7 @@ function renderInicio(){
   });
   let alertsHTML='';
   if(vencidas.length) alertsHTML+=`<div class="alert alert-danger">⚠️ <strong>${vencidas.length} FC vencidas</strong> sin cobrar · ${fmtM(vencidas.reduce((a,f)=>a+montoEfectivo(f),0))}</div>`;
-  if(posicion_final<0) alertsHTML+=`<div class="alert alert-danger">🚨 Posición final proyectada <strong>negativa</strong>: ${fmtM(posicion_final)}</div>`;
+  if(flujoNeto<0) alertsHTML+=`<div class="alert alert-danger">🚨 Resultado de la semana <strong>negativo</strong>: ${fmtM(flujoNeto)}</div>`;
   if(DATA.lastSync) alertsHTML+=`<div class="alert alert-success">🔗 Datos de Google Sheets · Última sync: ${DATA.lastSync.toLocaleTimeString('es-AR')}</div>`;
   document.getElementById('inicio-alerts').innerHTML=alertsHTML;
 
@@ -2302,8 +2357,7 @@ function renderInicio(){
     <div class="kpi o"><div class="kpi-lbl">Cheques emitidos</div><div class="kpi-val">${fmtM(montoChEmit)}</div><div class="kpi-sub">A vencer este período</div></div>
     <div class="kpi r"><div class="kpi-lbl">Sueldos</div><div class="kpi-val">${fmtM(montoSueldos)}</div><div class="kpi-sub">A pagar este período</div></div>
     <div class="kpi r"><div class="kpi-lbl">Impuestos y planes</div><div class="kpi-val">${fmtM(montoImp)}</div><div class="kpi-sub">Vencen este período</div></div>
-    <div class="kpi ${flujoNeto>=0?'g':'r'}"><div class="kpi-lbl">Flujo neto</div><div class="kpi-val ${flujoNeto>=0?'text-g':'text-red'}">${fmtM(flujoNeto)}</div><div class="kpi-sub">Ingresos − Egresos</div></div>
-    <div class="kpi ${posicion_final>=0?'g':'r'}"><div class="kpi-lbl">Posición final</div><div class="kpi-val ${posicion_final>=0?'text-g':'text-red'}">${fmtM(posicion_final)}</div><div class="kpi-sub">Proyectada</div></div>
+    <div class="kpi ${flujoNeto>=0?'g':'r'}"><div class="kpi-lbl">Resultado semana</div><div class="kpi-val ${flujoNeto>=0?'text-g':'text-red'}">${fmtM(flujoNeto)}</div><div class="kpi-sub">Ingresos − Egresos</div></div>
   `;
 }
 
@@ -2967,24 +3021,24 @@ function renderFlujo(){
     weeks.forEach(w=>{const[wn]=w.key.split('_');thead+=`<th>Sem ${wn}<br><span style="font-weight:400;font-size:10px">${w.start.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</span></th>`;});
     thead+='</tr></thead>';
     const ings=[],egrs=[],pos=[],sueldosW=[],impW=[],cheqEmitW=[],cuotasW=[];
-    let saldo_acc = getUltimosSaldos().total;
-    const initSaldo = saldo_acc;
     weeks.forEach(w=>{
       const{ing,egr,sueldosPeriod,impuestosPeriod,cheqEmitTotal,cuotas}=getFlujoPeriod(w.start,w.end);
-      saldo_acc+=ing-egr; ings.push(ing);egrs.push(egr);pos.push(saldo_acc);
-      sueldosW.push(sueldosPeriod||0);impW.push(impuestosPeriod||0);
-      cheqEmitW.push(cheqEmitTotal||0);cuotasW.push(cuotas||0);
-      if(saldo_acc<0) alerts.innerHTML+=`<div class="alert alert-danger">🚨 Sem ${w.key}: posición negativa <strong>${fmtM(saldo_acc)}</strong></div>`;
+      // Cada semana es INDEPENDIENTE: posición = ingresos - egresos de esa semana solamente
+      const netSemana = ing - egr;
+      ings.push(ing); egrs.push(egr); pos.push(netSemana);
+      sueldosW.push(sueldosPeriod||0); impW.push(impuestosPeriod||0);
+      cheqEmitW.push(cheqEmitTotal||0); cuotasW.push(cuotas||0);
+      if(netSemana<0) alerts.innerHTML+=`<div class="alert alert-danger">🚨 Sem ${w.key}: resultado negativo <strong>${fmtM(netSemana)}</strong></div>`;
     });
     let tbody='<tbody>';
-    tbody+=`<tr><td class="font-bold">💰 Saldo inicial</td>${weeks.map((_,i)=>`<td class="tr">${fmtM(i===0?initSaldo:pos[i-1])}</td>`).join('')}</tr>`;
+    // Sin fila "Saldo inicial" — cada semana arranca de cero salvo saldo manual
     tbody+=`<tr><td class="font-bold text-g">📥 Ingresos (FC + Cheques)</td>${ings.map(v=>`<td class="tr text-g">${fmtM(v)}</td>`).join('')}</tr>`;
     tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Cheques emitidos</td>${cheqEmitW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
     tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Sueldos</td>${sueldosW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
     tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Impuestos y planes</td>${impW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
     tbody+=`<tr><td class="font-bold text-red" style="padding-left:28px;font-size:12px;color:var(--gray-500)">↳ Cuotas préstamos</td>${cuotasW.map(v=>`<td class="tr" style="font-size:12px;color:var(--red)">${v>0?fmtM(v):'-'}</td>`).join('')}</tr>`;
     tbody+=`<tr><td class="font-bold text-red">📤 Total Egresos</td>${egrs.map(v=>`<td class="tr text-red">${fmtM(v)}</td>`).join('')}</tr>`;
-    tbody+=`<tr style="border-top:2px solid var(--gray-200)"><td class="font-bold" style="font-size:14px">🏁 Posición final</td>${pos.map(v=>`<td class="tr" style="font-weight:900;color:${v>=0?'var(--green)':'var(--red)'}">${fmtM(v)}</td>`).join('')}</tr>`;
+    tbody+=`<tr style="border-top:2px solid var(--gray-200)"><td class="font-bold" style="font-size:14px">🏁 Resultado semana</td>${pos.map(v=>`<td class="tr" style="font-weight:900;color:${v>=0?'var(--green)':'var(--red)'}">${fmtM(v)}</td>`).join('')}</tr>`;
     tbody+='</tbody>';
     wrap.innerHTML=`<table>${thead+tbody}</table>`;
 
@@ -3566,6 +3620,100 @@ function renderCargasHistorico() {
       <td class="tr font-bold text-red">${fmtM(total)}</td>
     </tr>`;
   }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  AJUSTES — Borrar datos manuales y de prueba
+// ══════════════════════════════════════════════════════
+
+const SEED_CHEQUES_NUMEROS     = ['8810234','4420981','5501100'];
+const SEED_PRESTAMOS_ENTIDADES = ['Banco Galicia','Banco Chubut'];
+
+function renderAjustes() {
+  const res = document.getElementById('aj-resumen');
+  if(!res) return;
+  const factExcel   = DATA.clientes.filter(f=>f.fuenteExcel).length;
+  const factPrueba  = DATA.clientes.filter(f=>!f.fuenteExcel).length;
+  const bancTiene   = Object.values(DATA.bancosManual||{}).some(v=>v>0) ? 'con saldos cargados' : 'sin saldos';
+  const bancMovs    = (DATA.bancosMovimientos||[]).length;
+  const cargasMeses = Object.keys(DATA.cargasManuales||{}).length;
+  const cheqPrueba  = DATA.cheques.filter(c=>SEED_CHEQUES_NUMEROS.includes(c.numeroCheque)).length;
+  const prestPrueba = DATA.prestamos.filter(p=>SEED_PRESTAMOS_ENTIDADES.includes(p.entidad)).length;
+  res.innerHTML = `
+    <div style="font-weight:700;margin-bottom:8px;color:var(--gray-700)">📊 Datos actualmente cargados:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;color:var(--gray-600)">
+      <span>🧾 Facturas importadas (Excel):</span><span><strong>${factExcel}</strong></span>
+      <span>🧪 Facturas de prueba:</span><span><strong>${factPrueba}</strong></span>
+      <span>🏦 Saldos bancarios:</span><span><strong>${bancTiene}</strong></span>
+      <span>🏦 Movimientos bancarios:</span><span><strong>${bancMovs}</strong></span>
+      <span>📋 Meses con cargas manuales:</span><span><strong>${cargasMeses}</strong></span>
+      <span>📝 Cheques de prueba:</span><span><strong>${cheqPrueba}</strong></span>
+      <span>🏛️ Préstamos de prueba:</span><span><strong>${prestPrueba}</strong></span>
+    </div>`;
+}
+
+function ajustesBorrarDatos() {
+  const delFacturas = document.getElementById('aj-del-facturas')?.checked;
+  const delBancos   = document.getElementById('aj-del-bancos')?.checked;
+  const delCargas   = document.getElementById('aj-del-cargas')?.checked;
+  const delPrueba   = document.getElementById('aj-del-prueba')?.checked;
+
+  if(!delFacturas && !delBancos && !delCargas && !delPrueba) {
+    alert('Seleccioná al menos una opción para borrar.');
+    return;
+  }
+
+  const lista = [];
+  if(delFacturas) lista.push('  \u2022 Facturas / Comprobantes cargados manualmente');
+  if(delBancos)   lista.push('  \u2022 Bancos: saldos manuales y movimientos');
+  if(delCargas)   lista.push('  \u2022 Cargas Manuales Mensuales');
+  if(delPrueba)   lista.push('  \u2022 Datos de prueba del sistema');
+
+  if(!confirm('\u00bfSeguro que quer\u00e9s borrar todos los datos seleccionados?\n\n' + lista.join('\n') + '\n\n\u26a0\ufe0f Esta acci\u00f3n no se puede deshacer.')) return;
+
+  const borrados = [];
+
+  if(delFacturas) {
+    const antes = DATA.clientes.length;
+    DATA.clientes = DATA.clientes.filter(f=>!f.fuenteExcel);
+    DATA.localEdits = {};
+    borrados.push('\u2705 ' + (antes - DATA.clientes.length) + ' facturas/comprobantes eliminados');
+  }
+
+  if(delPrueba) {
+    const cheqAntes = DATA.cheques.length;
+    DATA.cheques = DATA.cheques.filter(c=>!SEED_CHEQUES_NUMEROS.includes(c.numeroCheque));
+    const prestAntes = DATA.prestamos.length;
+    DATA.prestamos = DATA.prestamos.filter(p=>!SEED_PRESTAMOS_ENTIDADES.includes(p.entidad));
+    if(!delFacturas) {
+      const factAntes = DATA.clientes.length;
+      DATA.clientes = DATA.clientes.filter(f=>f.fuenteExcel);
+      borrados.push('\u2705 ' + (factAntes - DATA.clientes.length) + ' facturas de prueba eliminadas');
+    }
+    borrados.push('\u2705 ' + (cheqAntes - DATA.cheques.length) + ' cheques de prueba eliminados');
+    borrados.push('\u2705 ' + (prestAntes - DATA.prestamos.length) + ' pr\u00e9stamos de prueba eliminados');
+  }
+
+  if(delBancos) {
+    DATA.bancosManual = {galicia:0,chubut:0,macro:0,mpTrelew:0,mpMadryn:0,efectivo:0};
+    const movsAntes = (DATA.bancosMovimientos||[]).length;
+    DATA.bancosMovimientos = [];
+    try{localStorage.removeItem('gomatex_bancosManual');}catch(e){}
+    saveBancosMovimientos();
+    borrados.push('\u2705 Saldos bancarios reseteados a $0,00');
+    borrados.push('\u2705 ' + movsAntes + ' movimientos bancarios eliminados');
+  }
+
+  if(delCargas) {
+    const meses = Object.keys(DATA.cargasManuales||{}).length;
+    DATA.cargasManuales = {};
+    saveCargasManuales();
+    borrados.push('\u2705 ' + meses + ' mes/es de cargas manuales eliminados');
+  }
+
+  renderInicio();
+  renderAjustes();
+  alert('Limpieza completada:\n\n' + borrados.join('\n'));
 }
 
 function exportExcel(){
