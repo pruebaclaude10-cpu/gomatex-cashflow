@@ -306,8 +306,10 @@ tbody tr:hover{background:var(--gray-50)}
     <div class="page active" id="page-inicio">
       <div id="inicio-alerts"></div>
       <div class="week-nav">
-        <div class="week-badge" id="week-badge">Semana —</div>
-        <select id="week-sel" onchange="changeWeek()"></select>
+        <!-- Botones de acceso rápido: semana actual + 4 siguientes -->
+        <div id="week-quick-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <!-- Selector completo -->
+        <select id="week-sel" onchange="changeWeek()" style="font-size:12px"></select>
         <span style="font-size:12px;color:var(--gray-500);font-weight:600">o ver día:</span>
         <input type="date" id="day-sel" onchange="changeDay()">
         <button class="btn btn-secondary btn-sm" onclick="resetWeek()">📍 Hoy</button>
@@ -2016,23 +2018,86 @@ document.querySelectorAll('.modal-ov').forEach(m=>m.addEventListener('click',e=>
 // ══════════════════════════════════════════════════════
 
 function buildWeekSel(){
-  const sel=document.getElementById('week-sel');
-  const now=today();
-  const dow=(now.getDay()+6)%7;
-  const mon=new Date(now); mon.setDate(now.getDate()-dow);
-  const opts=[];
+  const sel = document.getElementById('week-sel');
+  const now  = today();
+  const dow  = (now.getDay()+6)%7;
+  const mon  = new Date(now); mon.setDate(now.getDate()-dow);
+  const opts = [];
   for(let i=-4;i<20;i++){
     const s=new Date(mon); s.setDate(mon.getDate()+i*7);
     const k=weekKey(s);
     const [w,yr]=k.split('_');
-    opts.push(`<option value="${k}"${k===weekKey(now)?' selected':''}>Semana ${w} / ${yr} — desde ${s.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</option>`);
+    opts.push(`<option value="${k}"${k===(currentWeekKey||weekKey(now))?' selected':''}>Semana ${w} / ${yr} — desde ${s.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})}</option>`);
   }
   sel.innerHTML=opts.join('');
+  buildWeekQuickBtns();
 }
 
-function changeWeek(){currentWeekKey=document.getElementById('week-sel').value;currentDayMode=false;document.getElementById('day-sel').value='';renderInicio();}
-function changeDay(){const v=document.getElementById('day-sel').value;if(!v){currentDayMode=false;renderInicio();return;}currentWeekKey=weekKey(new Date(v+'T12:00:00'));currentDayMode=true;renderInicio();}
-function resetWeek(){currentWeekKey=weekKey(today());currentDayMode=false;document.getElementById('day-sel').value='';buildWeekSel();renderInicio();}
+function buildWeekQuickBtns(){
+  const container = document.getElementById('week-quick-btns');
+  if(!container) return;
+  const now   = today();
+  const dow   = (now.getDay()+6)%7;
+  const mon   = new Date(now); mon.setDate(now.getDate()-dow);
+  const active = currentWeekKey||weekKey(now);
+  // Semana actual + 4 siguientes = 5 botones
+  const btns = [];
+  for(let i=0;i<5;i++){
+    const s = new Date(mon); s.setDate(mon.getDate()+i*7);
+    const k = weekKey(s);
+    const [w] = k.split('_');
+    const desde = s.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
+    const isActive = k === active;
+    btns.push(`<button
+      onclick="jumpToWeek('${k}')"
+      title="Semana ${w} — desde ${desde}"
+      style="
+        padding:6px 12px;border-radius:var(--r-sm);border:2px solid ${isActive?'var(--blue)':'var(--gray-200)'};
+        background:${isActive?'var(--blue)':'var(--white)'};
+        color:${isActive?'var(--white)':'var(--gray-700)'};
+        font-weight:${isActive?'900':'700'};font-size:13px;cursor:pointer;
+        transition:.15s;white-space:nowrap;line-height:1.2
+      ">
+      <div>Sem ${w}</div>
+      <div style="font-size:10px;font-weight:500;opacity:.8">${desde}</div>
+    </button>`);
+  }
+  container.innerHTML = btns.join('');
+}
+
+function jumpToWeek(k){
+  currentWeekKey = k;
+  currentDayMode = false;
+  document.getElementById('day-sel').value='';
+  // Sincronizar el select desplegable
+  const sel = document.getElementById('week-sel');
+  if(sel) sel.value = k;
+  buildWeekQuickBtns();
+  renderInicio();
+}
+
+function changeWeek(){
+  currentWeekKey=document.getElementById('week-sel').value;
+  currentDayMode=false;
+  document.getElementById('day-sel').value='';
+  buildWeekQuickBtns();
+  renderInicio();
+}
+function changeDay(){
+  const v=document.getElementById('day-sel').value;
+  if(!v){currentDayMode=false;renderInicio();return;}
+  currentWeekKey=weekKey(new Date(v+'T12:00:00'));
+  currentDayMode=true;
+  buildWeekQuickBtns();
+  renderInicio();
+}
+function resetWeek(){
+  currentWeekKey=weekKey(today());
+  currentDayMode=false;
+  document.getElementById('day-sel').value='';
+  buildWeekSel();
+  renderInicio();
+}
 
 // ══════════════════════════════════════════════════════
 //  INICIO — CASHFLOW TABLE
