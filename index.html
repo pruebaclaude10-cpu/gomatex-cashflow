@@ -1814,16 +1814,13 @@ function seedPrestamosEjemplo() {
 
 // ══════════════════════════════════════════════════════
 //  AUTO-REFRESH
-//  • Re-render de la vista activa: cada 2 segundos
-//  • Sincronización con Google Sheets: cada 5 minutos
+//  Sincronización con Google Sheets: cada 30 segundos
 // ══════════════════════════════════════════════════════
 
-const AR_RENDER_INTERVAL = 2;    // segundos — re-render UI con datos en memoria
-const AR_SYNC_INTERVAL   = 30;   // segundos — fetch real desde Google Sheets (mínimo práctico)
+const AR_SYNC_INTERVAL = 30; // segundos — fetch real desde Google Sheets
 
-let _arRender   = null;   // setInterval re-render
-let _arSync     = null;   // setInterval sync Sheets
-let _arCountdown = null;  // setInterval countdown visual
+let _arSync      = null;
+let _arCountdown = null;
 let _arSecondsLeft = 0;
 
 function startAutoRefresh() {
@@ -1834,22 +1831,6 @@ function startAutoRefresh() {
   if(indicator) indicator.style.display = 'inline';
 
   _arSecondsLeft = AR_SYNC_INTERVAL;
-
-  // ── Re-render cada 2 segundos (datos en memoria, sin fetch) ──
-  _arRender = setInterval(() => {
-    if(!SESSION) return;
-    // No re-renderizar si el usuario está escribiendo en algún campo
-    const focused = document.activeElement;
-    if(focused && (focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'||focused.tagName==='SELECT')) return;
-    const activePage = document.querySelector('.page.active');
-    if(!activePage) return;
-    const id = activePage.id.replace('page-','');
-    const renders = {
-      inicio:renderInicio, facturas:renderFact, cheques:renderCheques,
-      prestamos:renderLoans, bancos:renderBancos, flujo:renderFlujo, cargas:renderCargas
-    };
-    if(renders[id]) renders[id]();
-  }, AR_RENDER_INTERVAL * 1000);
 
   // ── Countdown visual (actualiza cada segundo) ──
   _arCountdown = setInterval(() => {
@@ -1862,7 +1843,7 @@ function startAutoRefresh() {
     if(_arSecondsLeft <= 0) _arSecondsLeft = AR_SYNC_INTERVAL;
   }, 1000);
 
-  // ── Sync con Google Sheets cada 5 minutos ──
+  // ── Sync con Google Sheets cada 30 segundos ──
   _arSync = setInterval(async () => {
     if(!SESSION) return;
     _arSecondsLeft = AR_SYNC_INTERVAL;
@@ -1872,7 +1853,6 @@ function startAutoRefresh() {
 }
 
 function stopAutoRefresh() {
-  if(_arRender)   { clearInterval(_arRender);   _arRender=null;   }
   if(_arSync)     { clearInterval(_arSync);     _arSync=null;     }
   if(_arCountdown){ clearInterval(_arCountdown);_arCountdown=null; }
   const indicator = document.getElementById('autorefresh-indicator');
