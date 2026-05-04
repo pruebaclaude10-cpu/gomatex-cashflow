@@ -2137,7 +2137,7 @@ function renderInicio(){
     label=`Día: ${fmtDate(rangeStart)}`;
     modeBadge='Diario';
   }
-  document.getElementById('week-badge').textContent=`Sem ${w}`;
+  buildWeekQuickBtns(); // actualiza el resaltado de los botones de semana rápida
   document.getElementById('cf-label').textContent=`Flujo de caja — ${label}`;
   document.getElementById('cf-mode').textContent=modeBadge;
 
