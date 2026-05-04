@@ -1743,9 +1743,13 @@ async function syncAll() {
   updateSheetsPanel();
   const activePage = document.querySelector('.page.active');
   if(activePage) {
-    const id = activePage.id.replace('page-','');
-    const renders = {inicio:renderInicio,facturas:renderFact,cheques:renderCheques,prestamos:renderLoans,bancos:renderBancos,flujo:renderFlujo,calculadora:renderCalculadora};
-    if(renders[id]) renders[id]();
+    const focused = document.activeElement;
+    const userTyping = focused && (focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'||focused.tagName==='SELECT');
+    if(!userTyping) {
+      const id = activePage.id.replace('page-','');
+      const renders = {inicio:renderInicio,facturas:renderFact,cheques:renderCheques,prestamos:renderLoans,bancos:renderBancos,flujo:renderFlujo,calculadora:renderCalculadora};
+      if(renders[id]) renders[id]();
+    }
   }
 }
 
@@ -1834,6 +1838,9 @@ function startAutoRefresh() {
   // ── Re-render cada 2 segundos (datos en memoria, sin fetch) ──
   _arRender = setInterval(() => {
     if(!SESSION) return;
+    // No re-renderizar si el usuario está escribiendo en algún campo
+    const focused = document.activeElement;
+    if(focused && (focused.tagName==='INPUT'||focused.tagName==='TEXTAREA'||focused.tagName==='SELECT')) return;
     const activePage = document.querySelector('.page.active');
     if(!activePage) return;
     const id = activePage.id.replace('page-','');
