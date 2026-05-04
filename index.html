@@ -271,8 +271,8 @@ tbody tr:hover{background:var(--gray-50)}
       <div class="nav-item" onclick="nav('bancos')"><span class="icon">🏦</span> Bancos / Saldos</div>
       <div class="nav-lbl">Análisis</div>
       <div class="nav-item" onclick="nav('flujo')"><span class="icon">📈</span> Flujo Proyectado</div>
-      <div class="nav-item" onclick="nav('calculadora')"><span class="icon">🧮</span> Calculadora Viabilidad</div>
       <div class="nav-item" onclick="nav('cargas')"><span class="icon">📋</span> Cargas Manuales</div>
+      <div class="nav-item" onclick="nav('calculadora')"><span class="icon">🧮</span> Calculadora Viabilidad</div>
       <div class="nav-lbl">Sistema</div>
       <div class="nav-item" onclick="nav('sheets')"><span class="icon">🔗</span> Google Sheets</div>
     </nav>
@@ -502,12 +502,17 @@ tbody tr:hover{background:var(--gray-50)}
           <button class="btn btn-secondary btn-sm" onclick="renderBancos()">🔄 Actualizar</button>
         </div>
       </div>
+
+      <!-- KPIs resumen -->
       <div class="kpi-grid" id="banco-kpis"></div>
       <div class="acc-grid" id="banco-cards"></div>
 
-      <!-- Formulario de saldos manuales -->
-      <div class="card" id="banco-manual-form" style="display:none">
-        <div class="card-hdr"><span class="card-title">✏️ Actualizar saldos</span><span style="font-size:11px;color:var(--gray-500)">Los saldos se guardan localmente en este dispositivo</span></div>
+      <!-- Formulario saldos actuales -->
+      <div class="card" id="banco-manual-form">
+        <div class="card-hdr">
+          <span class="card-title">✏️ Actualizar saldos</span>
+          <span style="font-size:11px;color:var(--gray-500)">Los saldos se guardan localmente</span>
+        </div>
         <div style="padding:16px 18px">
           <div class="grid3">
             <div class="fg"><label>🔴 Banco Galicia</label><input type="number" id="bm-galicia" placeholder="0" min="0"></div>
@@ -521,12 +526,72 @@ tbody tr:hover{background:var(--gray-50)}
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-hdr"><span class="card-title">📋 Movimientos importados</span></div>
-        <div class="tbl-wrap"><table id="banco-tbl">
-          <thead><tr><th>Fecha</th><th>Banco</th><th>Tipo</th><th>Descripción</th><th class="tr">Monto</th></tr></thead>
-          <tbody id="banco-body"></tbody>
-        </table></div>
+      <!-- Nueva carga de movimiento bancario -->
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr"><span class="card-title">➕ Registrar movimiento bancario</span></div>
+        <div style="padding:16px 18px">
+          <div class="grid3">
+            <div class="fg">
+              <label>Banco</label>
+              <select id="bm-mov-banco">
+                <option value="Banco Galicia">🔴 Banco Galicia</option>
+                <option value="Banco Chubut">🔵 Banco Chubut</option>
+                <option value="Banco Macro">🟡 Banco Macro</option>
+                <option value="Mercado Pago Trelew">💳 Mercado Pago Trelew</option>
+                <option value="Mercado Pago Madryn">💳 Mercado Pago Madryn</option>
+                <option value="Efectivo">💵 Efectivo</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label>Saldo / Importe</label>
+              <input type="number" id="bm-mov-saldo" placeholder="0" min="0">
+            </div>
+            <div class="fg">
+              <label>Tipo</label>
+              <select id="bm-mov-tipo">
+                <option value="Ingreso">📥 Ingreso</option>
+                <option value="Egreso">📤 Egreso</option>
+                <option value="Saldo actual">💰 Saldo actual</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid3" style="margin-top:10px">
+            <div class="fg">
+              <label>Fecha de carga</label>
+              <input type="date" id="bm-mov-fecha" onchange="bmMovActualizarSem(this.value)">
+            </div>
+            <div class="fg">
+              <label>Día</label>
+              <input type="text" id="bm-mov-dia" readonly style="background:var(--gray-50)">
+            </div>
+            <div class="fg">
+              <label>Semana correspondiente</label>
+              <input type="text" id="bm-mov-semana" readonly style="background:var(--gray-50)">
+            </div>
+          </div>
+          <div class="fg" style="margin-top:10px">
+            <label>Descripción (opcional)</label>
+            <input type="text" id="bm-mov-desc" placeholder="ej: Cobro factura, pago proveedor...">
+          </div>
+          <button class="btn btn-primary" style="margin-top:12px" onclick="agregarMovBancario()">➕ Agregar movimiento</button>
+        </div>
+      </div>
+
+      <!-- Historial de movimientos manuales -->
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr">
+          <span class="card-title">📋 Historial de movimientos</span>
+          <button class="btn btn-secondary btn-sm" onclick="limpiarMovBancarios()" style="font-size:11px">🗑 Limpiar historial</button>
+        </div>
+        <div class="tbl-wrap">
+          <table id="banco-tbl">
+            <thead><tr>
+              <th>Fecha</th><th>Día</th><th>Semana</th><th>Banco</th>
+              <th>Tipo</th><th>Descripción</th><th class="tr">Importe</th><th></th>
+            </tr></thead>
+            <tbody id="banco-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -601,9 +666,6 @@ create policy "auth_write" on gomatex_config for all    using (auth.role() = 'au
             </div>
             <div class="fg"><label>💳 GID — PRÉSTAMO 3 (opcional)</label>
               <input type="text" id="cfg-gid-prestamos3" placeholder="ej: otro GID">
-            </div>
-            <div class="fg"><label>🧾 GID — CLIENTES / FACTURAS (opcional)</label>
-              <input type="text" id="cfg-gid-clientes" placeholder="ej: 0">
             </div>
           </div>
           <button class="btn btn-primary" onclick="saveConfig()">☁️ Guardar y compartir con todas las PCs</button>
@@ -808,14 +870,13 @@ const SHEET_LINK = 'https://docs.google.com/spreadsheets/d/1qCaoz53N-tUy_JmDuCVS
 
 // GIDs de cada pestaña — ver URL de cada pestaña en la hoja
 let CONFIG = {
-  gidCheqEmit:    '',   // pestaña CHEQUES EMITIDOS
-  gidCheqRecib:   '',   // pestaña CHEQUES RECIBIDOS
-  gidSueldos:     '',   // pestaña SUELDOS
-  gidImpuestos:   '',   // pestaña IMPUESTOS Y PLANES FACILIDAD
-  gidPrestamos:   '',   // préstamo 1
-  gidPrestamos2:  '',   // préstamo 2
-  gidPrestamos3:  '',   // préstamo 3 (expansión futura)
-  gidClientes:    '',   // pestaña Facturas / Clientes (opcional)
+  gidCheqEmit:    '',
+  gidCheqRecib:   '',
+  gidSueldos:     '',
+  gidImpuestos:   '',
+  gidPrestamos:   '',
+  gidPrestamos2:  '',
+  gidPrestamos3:  '',
 };
 
 function csvUrl(gid) {
@@ -1704,27 +1765,9 @@ async function syncAll() {
     DATA.syncStatus.prestamos = {ok:true, count:DATA.prestamos.length};
   }
 
-  // ─ Clientes / Facturas (opcional)
-  if(CONFIG.gidClientes) {
-    try {
-      setSyncStatus('loading', 'Leyendo Clientes...');
-      syncLog('📥 Leyendo pestaña Clientes...', 'info');
-      const rows = await fetchCSV(csvUrl(CONFIG.gidClientes));
-      DATA.clientes = parseClientes(rows);
-      DATA.syncStatus.clientes = {ok:true, count:DATA.clientes.length, ts:new Date()};
-      syncLog(`✅ Clientes: ${DATA.clientes.length} registros`, 'ok');
-      ok++;
-    } catch(e) {
-      DATA.syncStatus.clientes = {ok:false, error:e.message};
-      syncLog(`❌ Clientes: ${e.message}`, 'err');
-      fail++;
-      seedFacturasEjemplo();
-      syncLog('⚠️ Usando datos de ejemplo para facturas', 'warn');
-    }
-  } else {
-    syncLog('⚠️ GID Clientes no configurado — usando datos de ejemplo', 'warn');
-    seedFacturasEjemplo();
-  }
+  // Facturas/Clientes: carga exclusivamente desde Excel (botón importar)
+  // No se importan desde Google Sheets
+  if(!DATA.clientes.length) seedFacturasEjemplo();
 
   DATA.lastSync = new Date();
   const ts = DATA.lastSync.toLocaleTimeString('es-AR');
@@ -1892,6 +1935,7 @@ function _startSession(user) {
   document.getElementById('sb-av').textContent = SESSION.name[0].toUpperCase();
 
   loadBancosManual();
+  loadBancosMovimientos();
   loadCargasManuales();
   buildWeekSel();
   currentWeekKey = weekKey(today());
@@ -2589,6 +2633,82 @@ function renderLoans(){
 //  BANCOS
 // ══════════════════════════════════════════════════════
 
+// ─ Movimientos bancarios manuales ────────────────────
+const DIAS_ES = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+function bmMovActualizarSem(fechaStr) {
+  if(!fechaStr) return;
+  const d = new Date(fechaStr+'T12:00:00');
+  if(isNaN(d)) return;
+  document.getElementById('bm-mov-dia').value = DIAS_ES[d.getDay()];
+  const [wn,yr] = weekKey(d).split('_');
+  document.getElementById('bm-mov-semana').value = `Sem ${wn} / ${yr}`;
+}
+
+function agregarMovBancario() {
+  const banco  = document.getElementById('bm-mov-banco').value;
+  const saldo  = parseNum(document.getElementById('bm-mov-saldo').value);
+  const tipo   = document.getElementById('bm-mov-tipo').value;
+  const fecha  = document.getElementById('bm-mov-fecha').value;
+  const desc   = document.getElementById('bm-mov-desc').value.trim();
+
+  if(!saldo || saldo <= 0) { alert('Ingresá un importe válido.'); return; }
+  if(!fecha) { alert('Seleccioná una fecha.'); return; }
+
+  const d = new Date(fecha+'T12:00:00');
+  const [wn,yr] = weekKey(d).split('_');
+
+  const mov = {
+    id:       gid(),
+    fecha:    d,
+    dia:      DIAS_ES[d.getDay()],
+    semana:   `Sem ${wn} / ${yr}`,
+    banco,
+    tipo,
+    descripcion: desc,
+    monto:    saldo,
+  };
+
+  if(!DATA.bancosMovimientos) DATA.bancosMovimientos = [];
+  DATA.bancosMovimientos.unshift(mov);
+  saveBancosMovimientos();
+
+  // Limpiar campos
+  document.getElementById('bm-mov-saldo').value = '';
+  document.getElementById('bm-mov-desc').value  = '';
+  document.getElementById('bm-mov-fecha').value = '';
+  document.getElementById('bm-mov-dia').value   = '';
+  document.getElementById('bm-mov-semana').value = '';
+
+  renderBancos();
+}
+
+function eliminarMovBancario(id) {
+  DATA.bancosMovimientos = (DATA.bancosMovimientos||[]).filter(m=>m.id!==id);
+  saveBancosMovimientos();
+  renderBancos();
+}
+
+function limpiarMovBancarios() {
+  if(!confirm('¿Limpiar todo el historial de movimientos?')) return;
+  DATA.bancosMovimientos = [];
+  saveBancosMovimientos();
+  renderBancos();
+}
+
+function saveBancosMovimientos() {
+  try { localStorage.setItem('gomatex_bancosMovs', JSON.stringify(DATA.bancosMovimientos||[])); } catch(e){}
+}
+
+function loadBancosMovimientos() {
+  try {
+    const s = localStorage.getItem('gomatex_bancosMovs');
+    if(s) {
+      DATA.bancosMovimientos = JSON.parse(s).map(m=>({...m, fecha: m.fecha ? new Date(m.fecha) : null}));
+    }
+  } catch(e){}
+}
+
 function renderBancos(){
   const s = getUltimosSaldos();
   const bancos = (s.galicia||0)+(s.chubut||0)+(s.macro||0);
@@ -2610,7 +2730,6 @@ function renderBancos(){
     {k:'mpMadryn',name:'Mercado Pago Madryn', icon:'💳', cls:'mp'},
     {k:'efectivo',name:'Efectivo',            icon:'💵', cls:'efectivo'},
   ];
-
   document.getElementById('banco-cards').innerHTML=ACCS.map(a=>`
     <div class="acc-card ${a.cls}" style="cursor:pointer" onclick="focusBancoEdit('bm-${a.k}')">
       <div class="acc-icon">${a.icon}</div>
@@ -2619,23 +2738,24 @@ function renderBancos(){
       <div class="acc-source">✏️ Carga manual</div>
     </div>`).join('');
 
-  // Formulario de carga manual
-  document.getElementById('banco-manual-form').style.display='block';
-  ACCS.forEach(a=>{
-    const el=document.getElementById('bm-'+a.k);
-    if(el) el.value = s[a.k]||0;
-  });
+  // Cargar valores en el form de saldos
+  const keys=['galicia','chubut','macro','mpTrelew','mpMadryn','efectivo'];
+  keys.forEach(k=>{ const el=document.getElementById('bm-'+k); if(el) el.value=s[k]||0; });
 
-  const movs = [...(DATA.bancosMovimientos||[])].sort((a,b)=>(b.fecha||0)-(a.fecha||0)).slice(0,50);
+  // Historial de movimientos
+  const movs = (DATA.bancosMovimientos||[]).slice(0,100);
   document.getElementById('banco-body').innerHTML = movs.length
     ? movs.map(m=>`<tr>
         <td>${fmtDate(m.fecha)}</td>
+        <td style="font-size:12px;color:var(--gray-500)">${m.dia||''}</td>
+        <td><span class="badge b-blue" style="font-size:10px">${m.semana||''}</span></td>
         <td>${m.banco}</td>
-        <td><span class="badge ${m.tipo==='Ingreso'?'b-green':'b-red'}">${m.tipo}</span></td>
+        <td><span class="badge ${m.tipo==='Ingreso'?'b-green':m.tipo==='Egreso'?'b-red':'b-gray'}">${m.tipo}</span></td>
         <td style="color:var(--gray-500);font-size:12px">${m.descripcion||'-'}</td>
-        <td class="tr font-bold ${m.tipo==='Ingreso'?'text-g':'text-red'}">${m.tipo==='Ingreso'?'+':'−'}${fmtM(m.monto)}</td>
+        <td class="tr font-bold ${m.tipo==='Ingreso'?'text-g':m.tipo==='Egreso'?'text-red':''}">${fmtM(m.monto)}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="eliminarMovBancario('${m.id}')">🗑</button></td>
       </tr>`).join('')
-    : `<tr><td colspan="5"><div class="empty-st"><div class="ico">🏦</div><p>Sin movimientos importados</p></div></td></tr>`;
+    : `<tr><td colspan="8"><div class="empty-st"><div class="ico">🏦</div><p>Sin movimientos registrados. Usá el formulario de arriba para agregar.</p></div></td></tr>`;
 }
 
 function focusBancoEdit(id){
@@ -2846,7 +2966,6 @@ async function saveConfig() {
   CONFIG.gidPrestamos  = document.getElementById('cfg-gid-prestamos').value    || '';
   CONFIG.gidPrestamos2 = document.getElementById('cfg-gid-prestamos2').value   || '';
   CONFIG.gidPrestamos3 = document.getElementById('cfg-gid-prestamos3').value   || '';
-  CONFIG.gidClientes   = document.getElementById('cfg-gid-clientes').value     || '';
 
   // Guardar siempre en localStorage como caché local
   try { localStorage.setItem('gomatex_config', JSON.stringify(CONFIG)); } catch(e) {}
@@ -2875,7 +2994,6 @@ function loadConfigUI() {
   document.getElementById('cfg-gid-prestamos').value   = CONFIG.gidPrestamos  || '';
   document.getElementById('cfg-gid-prestamos2').value  = CONFIG.gidPrestamos2 || '';
   document.getElementById('cfg-gid-prestamos3').value  = CONFIG.gidPrestamos3 || '';
-  document.getElementById('cfg-gid-clientes').value    = CONFIG.gidClientes   || '';
 
   // Mostrar origen de la config
   const cfgStatus = document.getElementById('cfg-cloud-status');
