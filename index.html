@@ -924,7 +924,15 @@ let DATA = {
 const today = () => new Date();
 const addDays = (d,n) => { const r=new Date(d); r.setDate(r.getDate()+n); return r; };
 const toISO = d => new Date(d).toISOString().split('T')[0];
-const fmtDate = d => d ? new Date(d).toLocaleDateString('es-AR') : '-';
+const fmtDate = d => {
+  if(!d) return '-';
+  const dt = new Date(d);
+  if(isNaN(dt)) return '-';
+  const dd = String(dt.getDate()).padStart(2,'0');
+  const mm = String(dt.getMonth()+1).padStart(2,'0');
+  const aa = String(dt.getFullYear()).slice(-2);
+  return `${dd}/${mm}/${aa}`;
+};
 const fmtM = n => '$'+(n||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const gid = () => '_'+Math.random().toString(36).slice(2,9);
 
@@ -1002,7 +1010,7 @@ function parseDateStr(s) {
   const m2 = str.match(/^(\d{1,2})[- ]([A-Za-z]{3})[- ](\d{2,4})$/);
   if(m2){
     const mo={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12,
-              ene:1,abr:4,ago:8,dic:12}[m2[2].toLowerCase()];
+              ene:1,feb:2,mar:3,abr:4,may:5,jun:6,jul:7,ago:8,sep:9,oct:10,nov:11,dic:12}[m2[2].toLowerCase()];
     if(mo){const yr=m2[3].length===2?'20'+m2[3]:m2[3];return new Date(`${yr}-${String(mo).padStart(2,'0')}-${m2[1].padStart(2,'0')}T12:00:00`);}
   }
   // yyyy-mm-dd
@@ -1072,7 +1080,6 @@ function parseCSV(text) {
 function importarFacturasExcel(input) {
   const file = input.files[0];
   if(!file) return;
-  // Reset input para permitir reimportar el mismo archivo
   const alertEl = document.getElementById('fc-import-alert');
   alertEl.style.display = 'none';
 
@@ -1082,100 +1089,125 @@ function importarFacturasExcel(input) {
       const wb = XLSX.read(e.target.result, {type:'binary', cellDates:true});
       const sheetName = wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, dateNF:'DD/MM/YYYY'});
+      // raw:true para leer valores numéricos sin formatear — los dates vienen como Date
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:true});
 
       if(!rows || rows.length < 2) {
         showFcAlert('warning', '⚠️ El archivo no contiene datos válidos.');
         return;
       }
 
-      // Detectar fila de encabezados (buscamos "codigo" o "nombre" o "numero")
-      let headerRow = 0;
+      // ── Columnas fijas según especificación ──────────────────────────────
+      // A=0, B=1, C=2, D=3, E=4, F=5, G=6, H=7, I=8, J=9, K=10, L=11
+      const COL = { nombre:1, fecha:2, tipo:3, letra:4, numero:5, importe:9, moneda:10, tc:11 };
+
+      // Detectar si la primera fila es encabezado (si col B es texto no numérico)
+      let startRow = 0;
       for(let i=0;i<Math.min(rows.length,5);i++){
-        const r = rows[i].map(c=>String(c||'').toLowerCase().trim());
-        if(r.some(c=>c.includes('codigo')||c.includes('código')||c.includes('nombre')||c.includes('numero')||c.includes('número'))) {
-          headerRow = i; break;
+        const b = String(rows[i][COL.nombre]||'').toLowerCase().trim();
+        const d = String(rows[i][COL.tipo]||'').toLowerCase().trim();
+        if(b.includes('nombre')||b.includes('deudor')||d.includes('tipo')||d.includes('comp')) {
+          startRow = i+1; break;
         }
       }
 
-      // Construir mapa de columnas flexible por header
-      const headers = rows[headerRow].map(c=>String(c||'').toLowerCase().trim());
-      const col = name => {
-        const idx = headers.findIndex(h=>h.includes(name));
-        return idx>=0 ? idx : -1;
-      };
-
-      // Índices de columnas según modelo adjunto
-      const iCod   = col('codigo')>=0 ? col('codigo') : 0;
-      const iNom   = col('nombre')>=0 ? col('nombre') : 1;
-      const iFech  = col('fecha')>=0  ? col('fecha')  : 2;
-      const iTipo  = col('tnumero')>=0? col('tnumero'): col('tipo')>=0 ? col('tipo') : 3;
-      const iLetra = col('lnumero')>=0? col('lnumero'): col('letra')>=0? col('letra') : 4;
-      const iNum   = col('numero')>=0 ? col('numero') : 5;
-      const iMonto = col('totals')>=0 ? col('totals') : col('total')>=0 ? col('total') : col('importe')>=0 ? col('importe') : 6;
-      const iMon   = col('moneda')>=0 ? col('moneda') : 7;
-
       let creados=0, actualizados=0, errores=0;
-      const ahora = today();
+      const errLog = [];
 
-      for(let i=headerRow+1; i<rows.length; i++){
+      for(let i=startRow; i<rows.length; i++){
         const r = rows[i];
-        if(!r || r.length < 3) continue;
+        const rowNum = i+1; // número de fila para reportar errores (base 1)
 
-        const numero = String(r[iNum]||'').trim();
-        const nombre = String(r[iNom]||'').trim();
-        if(!numero && !nombre) continue;           // fila vacía
-        if(nombre.toLowerCase()==='nombre') continue; // encabezado repetido
+        // ── Nombre (col B) ──────────────────────────────────────────────
+        const nombre = String(r[COL.nombre]||'').trim();
+        if(!nombre) continue; // fila vacía
 
-        const monto = parseNum(r[iMonto]);
-        // Parsear fecha — XLSX puede devolver string o Date
+        // ── Fecha (col C) ───────────────────────────────────────────────
         let fechaEmision = null;
-        const rawFecha = r[iFech];
+        const rawFecha = r[COL.fecha];
         if(rawFecha instanceof Date) {
-          fechaEmision = new Date(rawFecha);
-          fechaEmision.setHours(12,0,0,0);
+          fechaEmision = new Date(rawFecha); fechaEmision.setHours(12,0,0,0);
+        } else if(typeof rawFecha === 'number') {
+          // Serial de Excel → Date
+          const d = new Date(Date.UTC(1899,11,30)+(rawFecha*86400000));
+          d.setUTCHours(12); fechaEmision = d;
         } else {
           fechaEmision = parseDateStr(String(rawFecha||''));
         }
+        if(!fechaEmision || isNaN(fechaEmision)) {
+          errores++; errLog.push(`Fila ${rowNum}: fecha inválida ("${rawFecha}")`); continue;
+        }
 
-        if(!fechaEmision || isNaN(fechaEmision)) { errores++; continue; }
+        // ── Tipo (col D) — normalizar a formato del sistema: Fc/Rc/Nc/An/Pe ──
+        const tipoRaw = String(r[COL.tipo]||'').trim().toUpperCase();
+        const TIPO_MAP = {FC:'Fc', RC:'Rc', NC:'Nc', AN:'An', PE:'Pe'};
+        const tipo = TIPO_MAP[tipoRaw] || 'Fc'; // default Fc si no reconocido
 
-        const tipo    = String(r[iTipo]||'Fc').trim();
-        const letra   = String(r[iLetra]||'').trim();
-        const codigo  = String(r[iCod]||'').trim();
-        const moneda  = String(r[iMon]||'$').trim()==='$'?'ARS':String(r[iMon]||'ARS').trim();
+        // ── Letra (col E) ────────────────────────────────────────────────
+        const letraRaw = String(r[COL.letra]||'').trim().toUpperCase();
+        const letra = ['A','B','X'].includes(letraRaw) ? letraRaw : '';
 
-        // Cobro estimado = emision + 37 días
+        // ── Número (col F) — usar solo los últimos 9 dígitos ─────────────
+        const numeroRaw = String(r[COL.numero]||'').replace(/\D/g,'');
+        const numero = numeroRaw.length > 9 ? numeroRaw.slice(-9) : numeroRaw;
+
+        // ── Importe (col J) ──────────────────────────────────────────────
+        const importeRaw = parseNum(r[COL.importe]);
+        if(isNaN(importeRaw)) {
+          errores++; errLog.push(`Fila ${rowNum}: importe no numérico ("${r[COL.importe]}")`); continue;
+        }
+        const importeAbs = Math.abs(importeRaw);
+
+        // ── Moneda (col K) ───────────────────────────────────────────────
+        const monedaRaw = String(r[COL.moneda]||'$').trim();
+        const esUSD = monedaRaw.toUpperCase().includes('USD') || monedaRaw.toUpperCase().includes('U$');
+        const moneda = esUSD ? 'USD' : '$';
+
+        // ── Tipo de cambio (col L) — solo si USD ─────────────────────────
+        let tipoCambio = null;
+        let importePesos = importeAbs;
+        if(esUSD) {
+          tipoCambio = parseNum(r[COL.tc]);
+          if(!tipoCambio || tipoCambio <= 0) {
+            errores++; errLog.push(`Fila ${rowNum}: moneda USD pero tipo de cambio faltante o inválido (${nombre})`); continue;
+          }
+          importePesos = importeAbs * tipoCambio;
+        }
+
+        // ── Cobro estimado = emisión + 37 días ───────────────────────────
         const cobro = addDays(fechaEmision, 37);
         const semCF = weekKey(cobro);
 
         const obj = {
-          id:                 `fc_${numero||('r'+i)}`,
-          codigo,
-          cliente:            nombre,
+          id:               `fc_${numero||('r'+i+'_'+Date.now())}`,
+          cliente:          nombre,
           tipo,
           letra,
           numero,
-          monto:              Math.abs(monto),  // guardar positivo; los Rc se filtran por tipo
-          moneda,
+          // Almacenamos todos los campos de moneda
+          monto:            importePesos,          // importe en pesos (lo que se usa en cálculos)
+          montoOriginal:    importeAbs,            // importe en moneda original
+          moneda,                                  // '$' o 'USD'
+          tipoCambio:       tipoCambio||null,      // TC aplicado
+          montoPesos:       importePesos,          // explícito
           fechaEmision,
           fechaCobroAcordada: null,
-          estadoCobranza:     'PENDIENTE',
-          semVto:             '',
-          semCobroAcordado:   '',
-          semCashFlow:        semCF,
-          obs:                '',
-          fuenteExcel:        true,
-          importadoEn:        new Date().toISOString(),
+          estadoCobranza:   'PENDIENTE',
+          semCashFlow:      semCF,
+          obs:              '',
+          fuenteExcel:      true,
+          importadoEn:      new Date().toISOString(),
         };
 
-        // Duplicado: buscar por numero
-        const existente = DATA.clientes.findIndex(f=>f.numero===numero && numero!=='');
+        // Deduplicar por número de comprobante
+        const existente = numero
+          ? DATA.clientes.findIndex(f=>f.numero===numero)
+          : -1;
+
         if(existente>=0) {
-          // Actualizar solo campos del Sheets, preservar edits manuales
           const edit = DATA.localEdits[DATA.clientes[existente].id];
           if(!edit || !edit.estadoCobranza) {
-            DATA.clientes[existente] = {...DATA.clientes[existente], ...obj, id: DATA.clientes[existente].id};
+            DATA.clientes[existente] = {...DATA.clientes[existente], ...obj, id:DATA.clientes[existente].id};
           }
           actualizados++;
         } else {
@@ -1184,16 +1216,19 @@ function importarFacturasExcel(input) {
         }
       }
 
-      // Reset file input
       input.value = '';
-
-      // Recalcular flujo y re-renderizar
       renderFact();
       renderInicio();
 
-      const msg = `✅ Importación completada: ${creados} nueva/s, ${actualizados} actualizada/s${errores>0?`, ${errores} fila/s con error de fecha`:''}`;
-      showFcAlert('success', msg);
-      syncLog(`📂 Excel FC importado: ${creados} nuevas, ${actualizados} actualizadas`, 'ok');
+      let msg = `✅ Importación completada: ${creados} nueva/s, ${actualizados} actualizada/s`;
+      if(errores>0) msg += ` · ⚠️ ${errores} fila/s con error`;
+      showFcAlert(errores>0?'warning':'success', msg);
+
+      if(errLog.length>0) {
+        syncLog('⚠️ Errores en importación Excel FC:', 'warn');
+        errLog.forEach(e=>syncLog(`  • ${e}`, 'warn'));
+      }
+      syncLog(`📂 Excel FC: ${creados} nuevas, ${actualizados} actualizadas, ${errores} errores`, 'ok');
 
     } catch(ex) {
       input.value='';
@@ -2309,9 +2344,15 @@ function renderFact(){
       <td>${fmtDate(f.fechaEmision)}</td>
       <td>${fmtDate(fc)}</td>
       <td><span class="badge b-blue">${f.semCashFlow||'-'}</span></td>
-      <td class="tr font-bold">${f.montoAjustado!==undefined&&f.montoAjustado>0
-        ? `<span style="color:var(--orange)">${fmtM(f.montoAjustado)}</span><br><span style="font-size:10px;color:var(--gray-400);text-decoration:line-through">${fmtM(f.monto)}</span>`
-        : fmtM(f.monto)}</td>
+      <td class="tr font-bold">${(()=>{
+        if(f.montoAjustado!==undefined&&f.montoAjustado>0) {
+          return `<span style="color:var(--orange)">${fmtM(f.montoAjustado)}</span><br><span style="font-size:10px;color:var(--gray-400);text-decoration:line-through">${fmtM(f.monto)}</span>`;
+        }
+        if(f.moneda==='USD') {
+          return `${fmtM(f.monto)}<br><span style="font-size:10px;color:var(--blue)">USD ${(f.montoOriginal||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})} × TC ${f.tipoCambio||'-'}</span>`;
+        }
+        return fmtM(f.monto);
+      })()}</td>
       <td><span class="badge ${eMap[f.estadoCobranza]||'b-gray'}">${f.estadoCobranza}</span></td>
       <td>${diasStr}</td>
       <td>${edit}</td>
