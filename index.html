@@ -335,6 +335,7 @@ tbody tr:hover{background:var(--gray-50)}
             📂 Importar Excel FC
             <input type="file" id="fc-file-input" accept=".xlsx,.xls" style="display:none" onchange="importarFacturasExcel(this)">
           </label>
+          <button class="btn btn-danger btn-sm" onclick="eliminarTodosComprobantes()" title="Eliminar todos los comprobantes cargados">🗑 Eliminar todos</button>
           <button class="btn btn-secondary btn-sm" onclick="syncAll()">🔄 Actualizar</button>
         </div>
       </div>
@@ -781,13 +782,13 @@ document.addEventListener('DOMContentLoaded', function(){
 
 <!-- MODAL Editar factura -->
 <div class="modal-ov" id="modal-fact-edit">
-  <div class="modal" style="max-width:460px">
-    <div class="modal-hdr"><h3>Editar factura</h3><button class="modal-x" onclick="closeM('modal-fact-edit')">×</button></div>
+  <div class="modal" style="max-width:420px">
+    <div class="modal-hdr"><h3>Editar fecha de cobro</h3><button class="modal-x" onclick="closeM('modal-fact-edit')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="mfe-id">
       <input type="hidden" id="mfe-emision">
 
-      <!-- Cliente + fecha emisión (solo lectura) -->
+      <!-- Datos de referencia — solo lectura -->
       <div class="fg"><label>Cliente</label><input type="text" id="mfe-cli" readonly style="background:var(--gray-50)"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="fg"><label>Fecha de emisión</label><input type="text" id="mfe-emision-lbl" readonly style="background:var(--gray-50)"></div>
@@ -796,54 +797,25 @@ document.addEventListener('DOMContentLoaded', function(){
 
       <div style="height:1px;background:var(--gray-200);margin:12px 0"></div>
 
-      <!-- Días y cobro estimado — editables y sincronizados -->
-      <div style="background:var(--blue-light,#eff6ff);border-radius:var(--r-sm);padding:14px;margin-bottom:12px;border:1px solid #bfdbfe">
-        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:10px">⚡ Plazo y fecha estimada de cobro</div>
-        <div style="display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:end">
+      <!-- ÚNICO CAMPO EDITABLE: fecha estimada de cobro -->
+      <div style="background:var(--blue-light,#eff6ff);border-radius:var(--r-sm);padding:14px;border:1px solid #bfdbfe">
+        <div style="font-size:12px;font-weight:700;color:var(--blue);margin-bottom:10px">📅 Fecha estimada de cobro</div>
+        <div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:end">
           <div class="fg" style="margin:0">
-            <label>Días para cobro</label>
-            <input type="number" id="mfe-dias" min="0" max="365" style="margin-top:4px"
+            <label style="font-size:11px;color:var(--gray-500);font-weight:600">DÍAS</label>
+            <input type="number" id="mfe-dias" min="0" max="999" style="margin-top:4px"
               oninput="mfeSyncDias(this.value)">
           </div>
           <div class="fg" style="margin:0">
-            <label>Fecha estimada de cobro</label>
+            <label style="font-size:11px;color:var(--gray-500);font-weight:600">FECHA ESTIMADA</label>
             <input type="date" id="mfe-fecha-estimada" style="margin-top:4px"
               onchange="mfeSyncFecha(this.value)">
           </div>
         </div>
         <div style="margin-top:8px;font-size:11px;color:var(--blue)">
-          💡 Cambiá los días <em>o</em> la fecha — el otro campo se actualiza solo.
-          La semana de impacto en el flujo se recalcula automáticamente.
+          💡 Cambiá los días <em>o</em> la fecha — el otro se actualiza solo.
         </div>
         <div id="mfe-sem-preview" style="margin-top:8px;font-size:12px;font-weight:700;color:var(--blue)"></div>
-      </div>
-
-      <!-- Estado -->
-      <div class="fg"><label>Estado de cobro</label>
-        <select id="mfe-est">
-          <option value="PENDIENTE">Pendiente</option>
-          <option value="COBRADO">Cobrado</option>
-          <option value="INCOBRABLE">Incobrable</option>
-          <option value="SALDO A FAVOR">Saldo a favor</option>
-        </select>
-      </div>
-
-      <!-- Importe ajustado -->
-      <div style="background:#f0fdf4;border-radius:var(--r-sm);padding:14px;border:1px solid #86efac;margin-top:4px">
-        <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:8px">💰 Importe a cobrar</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end">
-          <div class="fg" style="margin:0">
-            <label style="font-size:11px;color:var(--gray-500)">IMPORTE ORIGINAL</label>
-            <input type="text" id="mfe-monto-orig" readonly style="margin-top:4px;background:var(--gray-50)">
-          </div>
-          <div class="fg" style="margin:0">
-            <label style="font-size:11px;color:var(--gray-500);font-weight:700">IMPORTE AJUSTADO (editable)</label>
-            <input type="number" id="mfe-monto-ajustado" placeholder="Dejar vacío = usar original" min="0" step="0.01" style="margin-top:4px;border-color:#86efac">
-          </div>
-        </div>
-        <div style="margin-top:6px;font-size:11px;color:#166534">
-          💡 Modificá si hubo intereses, ajustes o pagos parciales. Se usará en el flujo proyectado.
-        </div>
       </div>
     </div>
     <div class="modal-ftr">
@@ -2373,6 +2345,18 @@ function renderFact(){
 }
 
 // ── Helpers de sincronización días ↔ fecha en el modal ──────────────────
+// -- eliminar todos los comprobantes --
+function eliminarTodosComprobantes() {
+  const total = DATA.clientes.length;
+  if(total === 0) { alert('No hay comprobantes cargados.'); return; }
+  if(!confirm('¿Seguro que querés eliminar todos los comprobantes cargados?\n\nSe eliminarán ' + total + ' registro/s.\n\n⚠️ Esta acción no se puede deshacer.')) return;
+  DATA.clientes = [];
+  DATA.localEdits = {};
+  renderFact();
+  renderInicio();
+  showFcAlert('success', '✅ Se eliminaron ' + total + ' comprobante/s.');
+}
+
 function mfeSyncDias(dias) {
   const emision = document.getElementById('mfe-emision').value;
   if(!emision) return;
@@ -2385,93 +2369,64 @@ function mfeSyncDias(dias) {
 function mfeSyncFecha(fechaStr) {
   const emision = document.getElementById('mfe-emision').value;
   if(!emision || !fechaStr) return;
-  const base  = new Date(emision+'T12:00:00');
-  const dest  = new Date(fechaStr+'T12:00:00');
-  if(!isNaN(base)&&!isNaN(dest)) {
+  const base = new Date(emision+'T12:00:00');
+  const dest = new Date(fechaStr+'T12:00:00');
+  if(!isNaN(base)&&!isNaN(dest))
     document.getElementById('mfe-dias').value = Math.max(0, Math.round((dest-base)/86400000));
-  }
   mfeUpdateSemPreview(fechaStr);
 }
 function mfeUpdateSemPreview(fechaStr) {
   const el = document.getElementById('mfe-sem-preview');
-  if(!el || !fechaStr) return;
+  if(!el||!fechaStr) return;
   const d = new Date(fechaStr+'T12:00:00');
-  if(isNaN(d)) { el.innerHTML=''; return; }
+  if(isNaN(d)){el.innerHTML='';return;}
   const [wn,yr] = weekKey(d).split('_');
-  el.innerHTML = `📅 Impacta en flujo: <span class="badge b-blue">Semana ${wn} / ${yr}</span> · ${d.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'})}`;
+  el.innerHTML = '📅 Impacta en flujo: <span class="badge b-blue">Semana '+wn+' / '+yr+'</span> · '+d.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 }
 
 function openFactEdit(id){
   if(!canWrite()) return;
   const f=DATA.clientes.find(x=>x.id===id); if(!f) return;
   const edit=DATA.localEdits[id]||{};
-
   document.getElementById('mfe-id').value  = id;
   document.getElementById('mfe-cli').value = f.cliente||'';
   document.getElementById('mfe-num').value = f.numero||'';
-
   const emisISO = f.fechaEmision ? toISO(f.fechaEmision) : '';
   document.getElementById('mfe-emision').value     = emisISO;
-  document.getElementById('mfe-emision-lbl').value = emisISO
-    ? new Date(emisISO+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'})
-    : '—';
-
-  // Fecha estimada actual
-  let fechaEstimada = edit.fechaCobro || (f.fechaCobroAcordada ? toISO(f.fechaCobroAcordada) : '');
-  if(!fechaEstimada && emisISO) {
-    const dias0 = edit.dias !== undefined ? edit.dias : (f.diasCobro !== undefined ? f.diasCobro : 37);
-    fechaEstimada = toISO(addDays(new Date(emisISO+'T12:00:00'), dias0));
+  document.getElementById('mfe-emision-lbl').value = emisISO ? new Date(emisISO+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+  let fechaEstimada = edit.fechaCobro||(f.fechaCobroAcordada?toISO(f.fechaCobroAcordada):'');
+  if(!fechaEstimada&&emisISO){
+    const dias0=edit.dias!==undefined?edit.dias:(f.diasCobro!==undefined?f.diasCobro:37);
+    fechaEstimada=toISO(addDays(new Date(emisISO+'T12:00:00'),dias0));
   }
-
-  // Días entre emisión y fecha estimada
-  let dias = 37;
-  if(emisISO && fechaEstimada) {
-    const diff = Math.round((new Date(fechaEstimada+'T12:00:00') - new Date(emisISO+'T12:00:00')) / 86400000);
-    if(diff >= 0) dias = diff;
+  let dias=37;
+  if(emisISO&&fechaEstimada){
+    const diff=Math.round((new Date(fechaEstimada+'T12:00:00')-new Date(emisISO+'T12:00:00'))/86400000);
+    if(diff>=0) dias=diff;
   }
-
   document.getElementById('mfe-dias').value           = dias;
   document.getElementById('mfe-fecha-estimada').value = fechaEstimada;
-  document.getElementById('mfe-est').value            = edit.estadoCobranza || f.estadoCobranza || 'PENDIENTE';
-
-  // Importes
-  document.getElementById('mfe-monto-orig').value     = fmtM(f.monto||0);
-  document.getElementById('mfe-monto-ajustado').value = edit.montoAjustado !== undefined ? edit.montoAjustado : (f.montoAjustado||'');
-
   mfeUpdateSemPreview(fechaEstimada);
   document.getElementById('modal-fact-edit').classList.add('open');
 }
 
 function saveFactEdit(){
-  const id          = document.getElementById('mfe-id').value;
-  const nuevaFecha  = document.getElementById('mfe-fecha-estimada').value;
-  const dias        = parseInt(document.getElementById('mfe-dias').value)||37;
-  const nuevoEstado = document.getElementById('mfe-est').value;
-  const montoAjRaw  = document.getElementById('mfe-monto-ajustado').value;
-  const montoAjustado = montoAjRaw !== '' ? (parseFloat(montoAjRaw)||0) : undefined;
-
-  let semCF = '';
-  if(nuevaFecha) {
-    const d = new Date(nuevaFecha+'T12:00:00');
-    if(!isNaN(d)) semCF = weekKey(d);
-  }
-
-  DATA.localEdits[id] = { estadoCobranza:nuevoEstado, fechaCobro:nuevaFecha, semCashFlow:semCF, dias, montoAjustado };
-
-  const f = DATA.clientes.find(x=>x.id===id);
+  const id         = document.getElementById('mfe-id').value;
+  const nuevaFecha = document.getElementById('mfe-fecha-estimada').value;
+  const dias       = parseInt(document.getElementById('mfe-dias').value)||37;
+  let semCF='';
+  if(nuevaFecha){const d=new Date(nuevaFecha+'T12:00:00');if(!isNaN(d)) semCF=weekKey(d);}
+  DATA.localEdits[id]={...(DATA.localEdits[id]||{}),fechaCobro:nuevaFecha,semCashFlow:semCF,dias};
+  const f=DATA.clientes.find(x=>x.id===id);
   if(f){
-    if(nuevoEstado)             f.estadoCobranza  = nuevoEstado;
-    f.diasCobro = dias;
-    if(montoAjustado !== undefined) f.montoAjustado = montoAjustado;
-    if(nuevaFecha){
-      f.fechaCobroAcordada = new Date(nuevaFecha+'T12:00:00');
-      f.semCashFlow = semCF;
-    }
+    f.diasCobro=dias;
+    if(nuevaFecha){f.fechaCobroAcordada=new Date(nuevaFecha+'T12:00:00');f.semCashFlow=semCF;}
   }
   closeM('modal-fact-edit');
   renderFact();
   renderInicio();
 }
+
 
 
 // ══════════════════════════════════════════════════════
