@@ -2362,7 +2362,7 @@ function renderFact(){
           const color = m<0?'var(--red)':'inherit';
           return `<span style="color:${color}">${fmtM(m)}</span><br><span style="font-size:10px;color:var(--blue)">USD ${Math.abs(f.montoOriginal||0).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2})} × TC ${f.tipoCambio||'-'}</span>`;
         }
-        return `<span style="${m<0?'color:var(--red)':'''}">${fmtM(m)}</span>`;
+        return `<span style="${m<0?'color:var(--red)':''}">${fmtM(m)}</span>`;
       })()}</td>
       <td><span class="badge ${eMap[f.estadoCobranza]||'b-gray'}">${f.estadoCobranza}</span></td>
       <td>${diasStr}</td>
