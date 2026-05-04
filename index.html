@@ -242,7 +242,7 @@ tbody tr:hover{background:var(--gray-50)}
   background-position: center;
   opacity: 0.035;
   pointer-events: none;
-  z-index: 0;
+  z-index: -1;
 }
 </style>
 </head>
@@ -330,7 +330,7 @@ tbody tr:hover{background:var(--gray-50)}
       <div id="inicio-alerts"></div>
       <div class="week-nav">
         <!-- Botones de acceso rápido: semana actual + 4 siguientes -->
-        <div id="week-quick-btns" style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;flex:1;min-width:0"></div>
+        <div id="week-quick-btns" style="display:flex;gap:4px;flex-wrap:nowrap;flex:1;min-width:0;overflow-x:auto;overflow-y:visible;scrollbar-width:none"></div>
         <!-- Selector completo -->
         <select id="week-sel" onchange="changeWeek()" style="font-size:12px"></select>
         <span style="font-size:12px;color:var(--gray-500);font-weight:600">o ver día:</span>
@@ -2150,12 +2150,11 @@ function buildWeekSel(){
 function buildWeekQuickBtns(){
   const container = document.getElementById('week-quick-btns');
   if(!container) return;
-  const now   = today();
-  const dow   = (now.getDay()+6)%7;
-  const mon   = new Date(now); mon.setDate(now.getDate()-dow);
+  const now    = today();
+  const dow    = (now.getDay()+6)%7;
+  const mon    = new Date(now); mon.setDate(now.getDate()-dow);
   const active = currentWeekKey||weekKey(now);
-  // 10 botones compactos — caben a lo ancho de la página
-  const btns = [];
+  const btns   = [];
   for(let i=0;i<10;i++){
     const s = new Date(mon); s.setDate(mon.getDate()+i*7);
     const k = weekKey(s);
@@ -2163,7 +2162,7 @@ function buildWeekQuickBtns(){
     const desde = s.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
     const isActive = k === active;
     btns.push(`<button
-      onclick="jumpToWeek('${k}')"
+      data-week="${k}"
       title="Semana ${w} — desde ${desde}"
       style="
         padding:5px 8px;border-radius:var(--r-sm);
@@ -2171,7 +2170,8 @@ function buildWeekQuickBtns(){
         background:${isActive?'var(--blue)':'var(--white)'};
         color:${isActive?'var(--white)':'var(--gray-700)'};
         font-weight:${isActive?'900':'700'};font-size:12px;cursor:pointer;
-        transition:.15s;white-space:nowrap;line-height:1.2;flex-shrink:0
+        transition:.15s;white-space:nowrap;line-height:1.2;flex-shrink:0;
+        position:relative;z-index:1;
       ">
       <div>Sem ${w}</div>
       <div style="font-size:9px;font-weight:500;opacity:.8">${desde}</div>
@@ -2180,11 +2180,19 @@ function buildWeekQuickBtns(){
   container.innerHTML = btns.join('');
 }
 
+// Event delegation — un solo listener en el contenedor, fiable ante re-renders
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('#week-quick-btns [data-week]');
+  if(!btn) return;
+  jumpToWeek(btn.getAttribute('data-week'));
+});
+
 function jumpToWeek(k){
+  if(!k) return;
   currentWeekKey = k;
   currentDayMode = false;
-  document.getElementById('day-sel').value='';
-  // Sincronizar el select desplegable
+  const daySel = document.getElementById('day-sel');
+  if(daySel) daySel.value = '';
   const sel = document.getElementById('week-sel');
   if(sel) sel.value = k;
   buildWeekQuickBtns();
@@ -2229,12 +2237,8 @@ function getCajaPorSemana(semKey) {
 }
 
 function renderInicio(){
-  // Inicio siempre refleja la semana del calendario correspondiente al día de hoy
-  const todayWeek = weekKey(today());
-  if(!currentWeekKey || currentWeekKey !== todayWeek) {
-    // Solo actualizar si no hay selección manual activa del usuario
-    if(!currentDayMode) currentWeekKey = todayWeek;
-  }
+  // Si no hay semana seleccionada, usar la semana actual del calendario
+  if(!currentWeekKey) currentWeekKey = weekKey(today());
   const wk = currentWeekKey||weekKey(today());
   const ws = weekStart(wk); const we = weekEnd(wk);
   const [w,yr] = wk.split('_');
