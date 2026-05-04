@@ -1028,7 +1028,11 @@ function parseDateStr(s) {
 
 // Monto efectivo de una factura: usa montoAjustado si fue editado, sino monto original
 function montoEfectivo(f) {
-  return (f.montoAjustado !== undefined && f.montoAjustado > 0) ? f.montoAjustado : (f.monto||0);
+  // Si hay ajuste manual, usarlo (puede ser positivo o negativo)
+  if(f.montoAjustado !== undefined && f.montoAjustado !== null && f.montoAjustado !== '') {
+    return f.montoAjustado;
+  }
+  return f.monto||0; // monto ya tiene signo desde la importación
 }
 
 function cobroEstimado(f) {
@@ -2184,8 +2188,8 @@ function renderInicio(){
 
   // FC a cobrar en el período (solo Fc, solo pendientes, usando semCashFlow)
   const fcPeriod = DATA.clientes.filter(f => {
-    if(f.tipo!=='Fc') return false;
     if(f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
+    if(f.tipo==='Rc') return false;
     const fc = cobroEstimado(f);
     if(!fc) return false;
     return fc>=rangeStart&&fc<=rangeEnd;
@@ -2267,11 +2271,11 @@ function renderInicio(){
   // Alerts
   const now=today();
   const vencidas=DATA.clientes.filter(f=>{
-    if(f.tipo!=='Fc'||f.estadoCobranza==='COBRADO') return false;
+    if(f.tipo==='Rc'||f.estadoCobranza==='COBRADO') return false;
     const fc=cobroEstimado(f); return fc&&fc<now;
   });
   let alertsHTML='';
-  if(vencidas.length) alertsHTML+=`<div class="alert alert-danger">⚠️ <strong>${vencidas.length} FC vencidas</strong> sin cobrar · ${fmtM(vencidas.reduce((a,f)=>a+f.monto,0))}</div>`;
+  if(vencidas.length) alertsHTML+=`<div class="alert alert-danger">⚠️ <strong>${vencidas.length} FC vencidas</strong> sin cobrar · ${fmtM(vencidas.reduce((a,f)=>a+montoEfectivo(f),0))}</div>`;
   if(posicion_final<0) alertsHTML+=`<div class="alert alert-danger">🚨 Posición final proyectada <strong>negativa</strong>: ${fmtM(posicion_final)}</div>`;
   if(DATA.lastSync) alertsHTML+=`<div class="alert alert-success">🔗 Datos de Google Sheets · Última sync: ${DATA.lastSync.toLocaleTimeString('es-AR')}</div>`;
   document.getElementById('inicio-alerts').innerHTML=alertsHTML;
@@ -2311,13 +2315,14 @@ function renderFact(){
   if(sem) list=list.filter(f=>f.semCashFlow===sem);
   if(q) list=list.filter(f=>f.cliente.toLowerCase().includes(q)||f.numero.toLowerCase().includes(q));
 
-  // KPIs
+  // KPIs — usar montoEfectivo para respetar negativos y ajustes
   const pending=list.filter(f=>f.tipo==='Fc'&&f.estadoCobranza==='PENDIENTE');
   const cobradas=list.filter(f=>f.estadoCobranza==='COBRADO');
+  const totalCartera = list.filter(f=>f.tipo==='Fc').reduce((a,f)=>a+montoEfectivo(f),0);
   document.getElementById('fact-kpis').innerHTML=`
-    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(pending.reduce((a,f)=>a+f.monto,0))}</div><div class="kpi-sub">${pending.length} facturas</div></div>
-    <div class="kpi g"><div class="kpi-lbl">Cobradas</div><div class="kpi-val">${fmtM(cobradas.reduce((a,f)=>a+f.monto,0))}</div><div class="kpi-sub">${cobradas.length} facturas</div></div>
-    <div class="kpi"><div class="kpi-lbl">Total cartera</div><div class="kpi-val">${fmtM(list.filter(f=>f.tipo==='Fc').reduce((a,f)=>a+f.monto,0))}</div><div class="kpi-sub">${list.filter(f=>f.tipo==='Fc').length} FC</div></div>
+    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(pending.reduce((a,f)=>a+montoEfectivo(f),0))}</div><div class="kpi-sub">${pending.length} facturas</div></div>
+    <div class="kpi g"><div class="kpi-lbl">Cobradas</div><div class="kpi-val">${fmtM(cobradas.reduce((a,f)=>a+montoEfectivo(f),0))}</div><div class="kpi-sub">${cobradas.length} facturas</div></div>
+    <div class="kpi"><div class="kpi-lbl">Total cartera</div><div class="kpi-val">${fmtM(totalCartera)}</div><div class="kpi-sub">${list.filter(f=>f.tipo==='Fc').length} FC</div></div>
   `;
 
   const eMap={PENDIENTE:'b-orange',COBRADO:'b-green',INCOBRABLE:'b-red','SALDO A FAVOR':'b-purple'};
@@ -2913,9 +2918,11 @@ function switchFlujoView(v,btn){
 
 function getFlujoPeriod(start,end){
   // ── Ingresos ──────────────────────────────────────────
-  // Facturas pendientes: ingreso en fecha estimada de cobro
+  // Facturas pendientes: FC positivas suman como ingreso, NC/importes negativos restan
+  // Se incluyen todos los tipos excepto RC (recibos ya cobrados) y estados COBRADO/INCOBRABLE
   const fc=DATA.clientes.filter(f=>{
-    if(f.tipo!=='Fc'||f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
+    if(f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
+    if(f.tipo==='Rc') return false; // recibos ya implican cobro real, no proyectado
     const c=cobroEstimado(f); return c&&c>=start&&c<=end;
   });
   // Cheques recibidos: solo los que NO están entregados a terceros son ingreso nuestro.
@@ -3249,7 +3256,7 @@ function calcularViabilidad(){
     // calcular FC cobrar y cheq recibidos por separado
     const ws=r.start; const we=new Date(ws.getTime()+7*86400000-1);
     const fcCobrar=DATA.clientes.filter(f=>{
-      if(f.tipo!=='Fc'||f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
+      if(f.tipo==='Rc'||f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
       const c=cobroEstimado(f); return c&&c>=ws&&c<=we;
     }).reduce((a,f)=>a+f.monto,0);
     const cheqRec=DATA.cheques.filter(c=>c.fechaPago&&c.fechaPago>=ws&&c.fechaPago<=we&&!(c.entregadoA&&c.entregadoA.trim()!==''&&c.fechaEntrega!=null)).reduce((a,c)=>a+c.monto,0);
