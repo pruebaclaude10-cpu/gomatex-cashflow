@@ -1870,8 +1870,7 @@ async function syncAll() {
   }
 
   // Facturas/Clientes: carga exclusivamente desde Excel (botón importar)
-  // No se importan desde Google Sheets
-  if(!DATA.clientes.length) seedFacturasEjemplo();
+  // No se cargan datos de prueba automáticamente
 
   DATA.lastSync = new Date();
   const ts = DATA.lastSync.toLocaleTimeString('es-AR');
