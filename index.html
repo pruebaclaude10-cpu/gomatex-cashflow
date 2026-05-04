@@ -1942,18 +1942,30 @@ function _startSession(user) {
   buildWeekSel();
   currentWeekKey = weekKey(today());
 
-  document.getElementById('loading-ov').classList.remove('hidden');
-  document.getElementById('loading-msg').textContent = 'Cargando configuración compartida...';
+  const loadingEl = document.getElementById('loading-ov');
+  const msgEl     = document.getElementById('loading-msg');
+  loadingEl.classList.remove('hidden');
+  msgEl.textContent = 'Cargando configuración compartida...';
 
-  // Cargar config desde Supabase (async) antes de sincronizar Sheets
-  loadConfig().then(() => {
-    document.getElementById('loading-msg').textContent = 'Conectando con Google Sheets...';
-    return syncAll();
-  }).then(() => {
-    document.getElementById('loading-ov').classList.add('hidden');
+  // Timeout de seguridad: si en 10s no termina, abre el dashboard igual
+  const safetyTimer = setTimeout(() => {
+    loadingEl.classList.add('hidden');
     nav('inicio');
     startAutoRefresh();
-  });
+  }, 10000);
+
+  loadConfig()
+    .then(() => {
+      msgEl.textContent = 'Conectando con Google Sheets...';
+      return syncAll();
+    })
+    .catch(() => {}) // nunca dejar que un error trabe la pantalla
+    .finally(() => {
+      clearTimeout(safetyTimer);
+      loadingEl.classList.add('hidden');
+      nav('inicio');
+      startAutoRefresh();
+    });
 }
 
 let _loggingOut = false;
