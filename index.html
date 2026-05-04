@@ -1156,7 +1156,7 @@ function importarFacturasExcel(input) {
         if(isNaN(importeRaw)) {
           errores++; errLog.push(`Fila ${rowNum}: importe no numérico ("${r[COL.importe]}")`); continue;
         }
-        const importeAbs = Math.abs(importeRaw);
+        const importeConSigno = importeRaw; // conservar signo (negativo = resta del total)
 
         // ── Moneda (col K) ───────────────────────────────────────────────
         const monedaRaw = String(r[COL.moneda]||'$').trim();
@@ -1165,13 +1165,13 @@ function importarFacturasExcel(input) {
 
         // ── Tipo de cambio (col L) — solo si USD ─────────────────────────
         let tipoCambio = null;
-        let importePesos = importeAbs;
+        let importePesos = importeConSigno;
         if(esUSD) {
           tipoCambio = parseNum(r[COL.tc]);
           if(!tipoCambio || tipoCambio <= 0) {
             errores++; errLog.push(`Fila ${rowNum}: moneda USD pero tipo de cambio faltante o inválido (${nombre})`); continue;
           }
-          importePesos = importeAbs * tipoCambio;
+          importePesos = importeConSigno * tipoCambio;
         }
 
         // ── Cobro estimado = emisión + 37 días ───────────────────────────
@@ -1185,11 +1185,11 @@ function importarFacturasExcel(input) {
           letra,
           numero,
           // Almacenamos todos los campos de moneda
-          monto:            importePesos,          // importe en pesos (lo que se usa en cálculos)
-          montoOriginal:    importeAbs,            // importe en moneda original
-          moneda,                                  // '$' o 'USD'
-          tipoCambio:       tipoCambio||null,      // TC aplicado
-          montoPesos:       importePesos,          // explícito
+          monto:            importePesos,          // importe en pesos con signo (negativo resta)
+          montoOriginal:    importeConSigno,       // importe original con signo
+          moneda,
+          tipoCambio:       tipoCambio||null,
+          montoPesos:       importePesos,
           fechaEmision,
           fechaCobroAcordada: null,
           estadoCobranza:   'PENDIENTE',
