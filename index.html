@@ -158,8 +158,8 @@ tbody tr:hover{background:var(--gray-50)}
 .modal-ftr{padding:14px 22px;border-top:1px solid var(--gray-100);display:flex;gap:8px;justify-content:flex-end}
 
 /* ── CASHFLOW TABLE ── */
-.week-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
-.week-nav select,.week-nav input[type=date]{padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);font-family:inherit;font-size:13px;font-weight:700;color:var(--gray-900);background:var(--white)}
+.week-nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:20px;min-width:0}
+.week-nav select,.week-nav input[type=date]{padding:6px 10px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm);font-family:inherit;font-size:12px;font-weight:700;color:var(--gray-900);background:var(--white);flex-shrink:0}
 .week-nav select:focus,.week-nav input[type=date]:focus{outline:none;border-color:var(--blue)}
 .week-badge{background:var(--blue);color:var(--white);border-radius:var(--r-sm);padding:8px 16px;font-weight:800;font-size:14px}
 
@@ -329,7 +329,7 @@ tbody tr:hover{background:var(--gray-50)}
       <div id="inicio-alerts"></div>
       <div class="week-nav">
         <!-- Botones de acceso rápido: semana actual + 4 siguientes -->
-        <div id="week-quick-btns" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <div id="week-quick-btns" style="display:flex;gap:4px;flex-wrap:nowrap;overflow:hidden;flex:1;min-width:0"></div>
         <!-- Selector completo -->
         <select id="week-sel" onchange="changeWeek()" style="font-size:12px"></select>
         <span style="font-size:12px;color:var(--gray-500);font-weight:600">o ver día:</span>
@@ -2105,9 +2105,9 @@ function buildWeekQuickBtns(){
   const dow   = (now.getDay()+6)%7;
   const mon   = new Date(now); mon.setDate(now.getDate()-dow);
   const active = currentWeekKey||weekKey(now);
-  // Semana actual + 4 siguientes = 5 botones
+  // 10 botones compactos — caben a lo ancho de la página
   const btns = [];
-  for(let i=0;i<5;i++){
+  for(let i=0;i<10;i++){
     const s = new Date(mon); s.setDate(mon.getDate()+i*7);
     const k = weekKey(s);
     const [w] = k.split('_');
@@ -2117,14 +2117,15 @@ function buildWeekQuickBtns(){
       onclick="jumpToWeek('${k}')"
       title="Semana ${w} — desde ${desde}"
       style="
-        padding:6px 12px;border-radius:var(--r-sm);border:2px solid ${isActive?'var(--blue)':'var(--gray-200)'};
+        padding:5px 8px;border-radius:var(--r-sm);
+        border:2px solid ${isActive?'var(--blue)':'var(--gray-200)'};
         background:${isActive?'var(--blue)':'var(--white)'};
         color:${isActive?'var(--white)':'var(--gray-700)'};
-        font-weight:${isActive?'900':'700'};font-size:13px;cursor:pointer;
-        transition:.15s;white-space:nowrap;line-height:1.2
+        font-weight:${isActive?'900':'700'};font-size:12px;cursor:pointer;
+        transition:.15s;white-space:nowrap;line-height:1.2;flex-shrink:0
       ">
       <div>Sem ${w}</div>
-      <div style="font-size:10px;font-weight:500;opacity:.8">${desde}</div>
+      <div style="font-size:9px;font-weight:500;opacity:.8">${desde}</div>
     </button>`);
   }
   container.innerHTML = btns.join('');
