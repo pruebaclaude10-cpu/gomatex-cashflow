@@ -220,6 +220,67 @@ tbody tr:hover{background:var(--gray-50)}
 .loading-ov.hidden{display:none}
 .loading-logo{font-size:32px;font-weight:900;letter-spacing:-.5px;margin-bottom:8px}
 .loading-sub{font-size:13px;opacity:.7;margin-bottom:32px;font-weight:600}
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width:768px){
+  body{font-size:13px}
+  .login-box{width:94vw;padding:32px 20px;margin:0 auto}
+  .login-logo .brand{font-size:22px}
+  .main-content{min-height:100vh}
+  .topbar{padding:0 12px 0 8px;height:50px}
+  .topbar-title{font-size:14px}
+  .topbar-right{gap:5px}
+  .topbar-right .btn-sm{padding:4px 8px;font-size:11px}
+  #autorefresh-indicator{display:none!important}
+  .sync-badge{padding:4px 8px;font-size:11px}
+  .page{padding:14px 10px}
+  .section-hdr{margin-bottom:14px}
+  .section-hdr h2{font-size:16px}
+  .section-hdr-actions{flex-wrap:wrap;gap:6px}
+  .section-hdr-actions .btn-sm{font-size:11px;padding:5px 9px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .kpi{padding:14px 12px}
+  .kpi-val{font-size:16px}
+  .acc-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .acc-card{padding:12px 10px}
+  .acc-bal{font-size:15px}
+  .week-nav{gap:4px}
+  .week-nav select,.week-nav input[type=date]{font-size:11px;padding:5px 7px}
+  #week-quick-btns{flex-wrap:nowrap;gap:3px;-webkit-overflow-scrolling:touch}
+  .card-hdr{flex-wrap:wrap;gap:6px}
+  .filters{flex-wrap:wrap;gap:6px;padding:10px 12px}
+  .filters select,.filters input{width:100%;font-size:12px}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:520px}
+  thead th{padding:7px 8px;font-size:10px}
+  tbody td{padding:8px 8px;font-size:12px}
+  .modal-ov{padding:10px}
+  .modal{max-width:100%!important;margin:0}
+  .modal-hdr{padding:14px 16px 10px}
+  .modal-body{padding:14px 16px}
+  .modal-ftr{padding:10px 16px;gap:6px}
+  .grid2{grid-template-columns:1fr}
+  .grid3{grid-template-columns:1fr}
+  .cf-table td{padding:5px 10px;font-size:12px}
+  .cf-table td:last-child{min-width:110px}
+  .view-tabs{flex-wrap:wrap;gap:4px}
+  .tab-btn{font-size:11px;padding:5px 10px}
+  .sheets-tab-grid{grid-template-columns:1fr}
+  .sidebar{width:220px;transform:translateX(-220px)}
+  .sidebar.open{transform:translateX(0)}
+  .user-name{font-size:12px}
+  .user-role{font-size:10px}
+  .badge{font-size:10px;padding:2px 7px}
+  .cf-section td{font-size:10px}
+}
+@media (max-width:420px){
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .kpi-val{font-size:14px}
+  .acc-grid{grid-template-columns:repeat(2,1fr)}
+  .login-box{padding:24px 14px}
+  .page{padding:10px 8px}
+  #week-quick-btns .btn-sm{font-size:10px;padding:4px 7px}
+}
 .loading-spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--white);border-radius:50%;animation:spin .8s linear infinite;margin-bottom:16px}
 .loading-msg{font-size:13px;font-weight:600;opacity:.8}
 
@@ -854,7 +915,7 @@ document.addEventListener('DOMContentLoaded', function(){
 <!-- MODAL Editar factura -->
 <div class="modal-ov" id="modal-fact-edit">
   <div class="modal" style="max-width:420px">
-    <div class="modal-hdr"><h3>Editar fecha de cobro</h3><button class="modal-x" onclick="closeM('modal-fact-edit')">×</button></div>
+    <div class="modal-hdr"><h3>Editar factura</h3><button class="modal-x" onclick="closeM('modal-fact-edit')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="mfe-id">
       <input type="hidden" id="mfe-emision">
@@ -864,6 +925,15 @@ document.addEventListener('DOMContentLoaded', function(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
         <div class="fg"><label>Fecha de emisión</label><input type="text" id="mfe-emision-lbl" readonly style="background:var(--gray-50)"></div>
         <div class="fg"><label>Número</label><input type="text" id="mfe-num" readonly style="background:var(--gray-50)"></div>
+      </div>
+
+      <!-- Estado de cobro -->
+      <div class="fg" style="margin-bottom:12px">
+        <label>Estado de cobranza</label>
+        <select id="mfe-estado" style="font-weight:700">
+          <option value="PENDIENTE">🟡 PENDIENTE</option>
+          <option value="COBRADO">✅ COBRADO</option>
+        </select>
       </div>
 
       <div style="height:1px;background:var(--gray-200);margin:12px 0"></div>
@@ -1201,6 +1271,10 @@ function importarFacturasExcel(input) {
         if(!fechaEmision || isNaN(fechaEmision)) {
           errores++; errLog.push(`Fila ${rowNum}: fecha inválida ("${rawFecha}")`); continue;
         }
+        // ── Omitir datos del año 2024 ────────────────────────────────────
+        if(fechaEmision.getFullYear() === 2024) {
+          errLog.push(`Fila ${rowNum}: omitida (año 2024)`); continue;
+        }
 
         // ── Tipo (col D) — normalizar a formato del sistema: Fc/Rc/Nc/An/Pe ──
         const tipoRaw = String(r[COL.tipo]||'').trim().toUpperCase();
@@ -1216,11 +1290,20 @@ function importarFacturasExcel(input) {
         const numero = numeroRaw.length > 9 ? numeroRaw.slice(-9) : numeroRaw;
 
         // ── Importe (col J) ──────────────────────────────────────────────
-        const importeRaw = parseNum(r[COL.importe]);
-        if(isNaN(importeRaw)) {
-          errores++; errLog.push(`Fila ${rowNum}: importe no numérico ("${r[COL.importe]}")`); continue;
+        // XLSX raw:true puede devolver número JS o string con formato AR/US
+        let importeConSigno = 0;
+        const _rawImp = r[COL.importe];
+        if(_rawImp === null || _rawImp === undefined || String(_rawImp).trim() === '') {
+          errores++; errLog.push(`Fila ${rowNum}: importe vacío (${nombre})`); continue;
         }
-        const importeConSigno = importeRaw; // conservar signo (negativo = resta del total)
+        if(typeof _rawImp === 'number' && !isNaN(_rawImp)) {
+          importeConSigno = Math.abs(_rawImp);
+        } else {
+          importeConSigno = Math.abs(parseNum(String(_rawImp)));
+        }
+        if(importeConSigno <= 0) {
+          errores++; errLog.push(`Fila ${rowNum}: importe no válido ("${_rawImp}") para ${nombre}`); continue;
+        }
 
         // ── Moneda (col K) ───────────────────────────────────────────────
         const monedaRaw = String(r[COL.moneda]||'$').trim();
@@ -1365,6 +1448,13 @@ function parseClientes(rows) {
     const fechaCobro = parseDateStr(fechaCobroRaw);
 
     if(!numero&&!nombre) continue;
+    // Omitir año 2024
+    if(fechaEmision && fechaEmision.getFullYear()===2024) continue;
+    // Calcular semCashFlow si no viene del Sheets
+    if(!semCashFlow && fechaEmision) {
+      const cobroD = new Date(fechaEmision.getTime()+37*86400000);
+      semCashFlow = weekKey(cobroD);
+    }
     result.push({
       id: `${numero}_${i}`,
       codigo: String(r[0]||'').trim(),
@@ -1374,8 +1464,8 @@ function parseClientes(rows) {
       monto,
       moneda,
       fechaEmision,
-      fechaCobroAcordada: fechaCobro,
-      estadoCobranza,
+      fechaCobroAcordada: fechaCobro||null,
+      estadoCobranza: estadoCobranza||'PENDIENTE',
       semVto,
       semCobroAcordado,
       semCashFlow,
@@ -2250,12 +2340,13 @@ function renderInicio(){
   const efectivo = (saldos.efectivo||0);
   const caja = saldos.total;
 
-  // FC a cobrar en el período (solo Fc, solo pendientes, usando semCashFlow)
+  // FC a cobrar en el período (solo tipo Fc, solo PENDIENTES, usando fecha estimada de cobro)
   const fcPeriod = DATA.clientes.filter(f => {
-    if(f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
-    if(f.tipo==='Rc') return false;
+    if(f.estadoCobranza !== 'PENDIENTE') return false; // solo pendientes impactan en proyección
+    if(f.tipo !== 'Fc') return false; // solo facturas tipo Fc
     const fc = cobroEstimado(f);
     if(!fc) return false;
+    if(fc.getFullYear() === 2024) return false; // omitir 2024
     return fc>=rangeStart&&fc<=rangeEnd;
   });
   const montoFc = fcPeriod.reduce((a,f)=>a+montoEfectivo(f),0);
@@ -2334,8 +2425,11 @@ function renderInicio(){
   // Alerts
   const now=today();
   const vencidas=DATA.clientes.filter(f=>{
-    if(f.tipo==='Rc'||f.estadoCobranza==='COBRADO') return false;
-    const fc=cobroEstimado(f); return fc&&fc<now;
+    if(f.tipo!=='Fc'||f.estadoCobranza!=='PENDIENTE') return false;
+    const fc=cobroEstimado(f);
+    if(!fc) return false;
+    if(fc.getFullYear()===2024) return false;
+    return fc<now;
   });
   let alertsHTML='';
   if(vencidas.length) alertsHTML+=`<div class="alert alert-danger">⚠️ <strong>${vencidas.length} FC vencidas</strong> sin cobrar · ${fmtM(vencidas.reduce((a,f)=>a+montoEfectivo(f),0))}</div>`;
@@ -2371,7 +2465,11 @@ function renderFact(){
   const curSem=semSel.value;
   semSel.innerHTML='<option value="">Todas las semanas</option>'+sems.map(s=>`<option value="${s}"${s===curSem?' selected':''}>${s}</option>`).join('');
 
-  let list=[...DATA.clientes].sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
+  // Omitir registros del año 2024 completamente
+  let list=[...DATA.clientes].filter(f=>{
+    const fe=f.fechaEmision; if(!fe) return true;
+    return fe.getFullYear()!==2024;
+  }).sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
   if(tipo) list=list.filter(f=>f.tipo===tipo);
   if(est) list=list.filter(f=>f.estadoCobranza===est);
   if(sem) list=list.filter(f=>f.semCashFlow===sem);
@@ -2480,6 +2578,9 @@ function openFactEdit(id){
   document.getElementById('mfe-id').value  = id;
   document.getElementById('mfe-cli').value = f.cliente||'';
   document.getElementById('mfe-num').value = f.numero||'';
+  // Cargar estado actual (sólo PENDIENTE / COBRADO)
+  const estadoSel = document.getElementById('mfe-estado');
+  if(estadoSel) estadoSel.value = (f.estadoCobranza==='COBRADO') ? 'COBRADO' : 'PENDIENTE';
   const emisISO = f.fechaEmision ? toISO(f.fechaEmision) : '';
   document.getElementById('mfe-emision').value     = emisISO;
   document.getElementById('mfe-emision-lbl').value = emisISO ? new Date(emisISO+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
@@ -2505,10 +2606,12 @@ function saveFactEdit(){
   const dias       = parseInt(document.getElementById('mfe-dias').value)||37;
   let semCF='';
   if(nuevaFecha){const d=new Date(nuevaFecha+'T12:00:00');if(!isNaN(d)) semCF=weekKey(d);}
-  DATA.localEdits[id]={...(DATA.localEdits[id]||{}),fechaCobro:nuevaFecha,semCashFlow:semCF,dias};
+  const nuevoEstado = (document.getElementById('mfe-estado')?.value==='COBRADO') ? 'COBRADO' : 'PENDIENTE';
+  DATA.localEdits[id]={...(DATA.localEdits[id]||{}),fechaCobro:nuevaFecha,semCashFlow:semCF,dias,estadoCobranza:nuevoEstado};
   const f=DATA.clientes.find(x=>x.id===id);
   if(f){
     f.diasCobro=dias;
+    f.estadoCobranza=nuevoEstado;
     if(nuevaFecha){f.fechaCobroAcordada=new Date(nuevaFecha+'T12:00:00');f.semCashFlow=semCF;}
   }
   closeM('modal-fact-edit');
@@ -2971,9 +3074,12 @@ function getFlujoPeriod(start,end){
   // Facturas pendientes: FC positivas suman como ingreso, NC/importes negativos restan
   // Se incluyen todos los tipos excepto RC (recibos ya cobrados) y estados COBRADO/INCOBRABLE
   const fc=DATA.clientes.filter(f=>{
-    if(f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
-    if(f.tipo==='Rc') return false; // recibos ya implican cobro real, no proyectado
-    const c=cobroEstimado(f); return c&&c>=start&&c<=end;
+    if(f.estadoCobranza !== 'PENDIENTE') return false; // solo pendientes impactan en flujo
+    if(f.tipo !== 'Fc') return false; // solo facturas tipo Fc en proyección
+    const c=cobroEstimado(f);
+    if(!c) return false;
+    if(c.getFullYear()===2024) return false; // omitir 2024
+    return c>=start&&c<=end;
   });
   // Cheques recibidos: solo los que NO están entregados a terceros son ingreso nuestro.
   // "Entregado" = tiene entregadoA Y fechaEntrega ambos cargados.
@@ -3306,9 +3412,11 @@ function calcularViabilidad(){
     // calcular FC cobrar y cheq recibidos por separado
     const ws=r.start; const we=new Date(ws.getTime()+7*86400000-1);
     const fcCobrar=DATA.clientes.filter(f=>{
-      if(f.tipo==='Rc'||f.estadoCobranza==='COBRADO'||f.estadoCobranza==='INCOBRABLE') return false;
-      const c=cobroEstimado(f); return c&&c>=ws&&c<=we;
-    }).reduce((a,f)=>a+f.monto,0);
+      if(f.tipo!=='Fc'||f.estadoCobranza!=='PENDIENTE') return false;
+      const c=cobroEstimado(f);
+      if(!c||c.getFullYear()===2024) return false;
+      return c>=ws&&c<=we;
+    }).reduce((a,f)=>a+montoEfectivo(f),0);
     const cheqRec=DATA.cheques.filter(c=>c.fechaPago&&c.fechaPago>=ws&&c.fechaPago<=we&&!(c.entregadoA&&c.entregadoA.trim()!==''&&c.fechaEntrega!=null)).reduce((a,c)=>a+c.monto,0);
 
     html+=`<tr ${r.hasMovimiento?'style="background:var(--blue-light)"':r.pos<0?'style="background:var(--red-light)"':''}>
