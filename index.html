@@ -2432,11 +2432,10 @@ function renderFact(){
   const curSem=semSel.value;
   semSel.innerHTML='<option value="">Todas las semanas</option>'+sems.map(s=>`<option value="${s}"${s===curSem?' selected':''}>${s}</option>`).join('');
 
-  // Una FC "ya cobrada implícitamente" = su fecha estimada de cobro ya pasó y sigue PENDIENTE
-  // Estas se ocultan automáticamente de la vista principal (se asume que ya se cobró)
+  // Ocultar CUALQUIER comprobante cuyo cobro estimado ya pasó (aunque sea 1 día)
+  // Se asume que si pasó la fecha, ya fue cobrado/resuelto
   const yaVencioEstimado = f => {
-    if(f.estadoCobranza !== 'PENDIENTE') return false;
-    if(f.tipo !== 'Fc') return false;
+    if(f.estadoCobranza === 'COBRADO') return false; // ya marcado cobrado — no filtrar acá
     const c = cobroEstimado(f);
     return c && c < now;
   };
