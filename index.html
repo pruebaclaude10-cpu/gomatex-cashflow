@@ -740,13 +740,34 @@ create policy "auth_write" on gomatex_config for all    using (auth.role() = 'au
         </div>
       </div>
 
-      <!-- Histórico por mes -->
+      <!-- Histórico de cargas guardadas -->
       <div class="card" style="margin-top:14px">
-        <div class="card-hdr"><span class="card-title">📊 Histórico de cargas</span></div>
+        <div class="card-hdr"><span class="card-title">📊 Historial activo</span></div>
         <div style="overflow-x:auto">
           <table id="cargas-historico">
             <thead><tr id="cargas-hist-head"></tr></thead>
             <tbody id="cargas-hist-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Historial archivado (meses limpiados) -->
+      <div class="card" style="margin-top:14px">
+        <div class="card-hdr">
+          <span class="card-title">🗄️ Historial archivado</span>
+          <span style="font-size:11px;color:var(--gray-500)">Meses limpiados — consultables en cualquier momento</span>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th>Mes</th>
+              <th>Archivado el</th>
+              <th class="tr">Total egresos</th>
+              <th></th>
+            </tr></thead>
+            <tbody id="cargas-historial-body">
+              <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray-400)">Cargando...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -3629,6 +3650,7 @@ function renderCargas() {
   }).join('');
 
   renderCargasHistorico();
+  renderHistorialCargas();
 }
 
 function actualizarSemBadge(key, fechaStr) {
@@ -3678,13 +3700,95 @@ async function guardarCargas() {
   renderInicio();
 }
 
-function limpiarCargas() {
-  const mes=document.getElementById('cargas-mes')?.value||getMesActual();
-  if(!confirm(`¿Limpiar todos los importes de ${mes}?`)) return;
+async function limpiarCargas() {
+  const mes = document.getElementById('cargas-mes')?.value || getMesActual();
+  const datos = DATA.cargasManuales[mes];
+  if(!datos || !Object.values(datos).some(v => (v.monto||v||0) > 0)) {
+    alert('No hay datos cargados en este mes para limpiar.');
+    return;
+  }
+  if(!confirm(`¿Limpiar los importes de ${mes}?\n\nLos datos se guardarán en el historial y podrás consultarlos cuando quieras.`)) return;
+
+  // Archivar antes de borrar
+  try {
+    const id = `${mes}_${Date.now()}`;
+    await sb.from('gomatex_cargas_historial').insert([{
+      id,
+      mes,
+      data: JSON.stringify(datos),
+      archivado_at: new Date().toISOString()
+    }]);
+  } catch(e) { syncLog('⚠️ No se pudo archivar en historial: '+e.message,'warn'); }
+
   delete DATA.cargasManuales[mes];
-  saveCargasManuales();
+  await saveCargasManuales();
   renderCargas();
   renderInicio();
+  renderHistorialCargas();
+  alert(`✅ Mes ${mes} limpiado y archivado en el historial.`);
+}
+
+async function renderHistorialCargas() {
+  const container = document.getElementById('cargas-historial-body');
+  if(!container) return;
+  try {
+    const {data, error} = await sb.from('gomatex_cargas_historial')
+      .select('id, mes, data, archivado_at')
+      .order('archivado_at', {ascending: false})
+      .limit(36);
+    if(error || !data || !data.length) {
+      container.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray-400)">Sin registros archivados todavía.</td></tr>';
+      return;
+    }
+    container.innerHTML = data.map(row => {
+      const [a,m] = row.mes.split('-');
+      const nombreMes = new Date(+a,+m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+      const fechaArch = new Date(row.archivado_at).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+      const vals = JSON.parse(row.data||'{}');
+      const total = CARGAS_ITEMS.reduce((s,i)=>{
+        const v=vals[i.key]; return s+((typeof v==='object'?v.monto:v)||0);
+      },0);
+      return `<tr>
+        <td class="font-bold">${nombreMes}</td>
+        <td style="font-size:12px;color:var(--gray-500)">${fechaArch}</td>
+        <td class="tr font-bold text-red">${fmtM(total)}</td>
+        <td>
+          <button class="btn btn-secondary btn-sm" onclick="verDetalleHistorial('${row.id}')">👁 Ver detalle</button>
+          <button class="btn btn-danger btn-sm" onclick="borrarHistorial('${row.id}','${row.mes}')" style="margin-left:4px">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<tr><td colspan="4" style="color:var(--red);padding:12px">Error al cargar historial.</td></tr>';
+  }
+}
+
+async function verDetalleHistorial(id) {
+  try {
+    const {data,error} = await sb.from('gomatex_cargas_historial').select('mes,data').eq('id',id).single();
+    if(error||!data) { alert('No se pudo cargar el detalle.'); return; }
+    const vals = JSON.parse(data.data||'{}');
+    const [a,m] = data.mes.split('-');
+    const nombreMes = new Date(+a,+m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+    let detalle = `📋 Cargas de ${nombreMes}\n${'─'.repeat(40)}\n`;
+    CARGAS_ITEMS.forEach(i=>{
+      const v = vals[i.key];
+      const monto = (typeof v==='object'?v.monto:v)||0;
+      if(monto>0) {
+        const fecha = (typeof v==='object'&&v.fecha) ? ` (${v.fecha})` : '';
+        detalle += `${i.label}: ${fmtM(monto)}${fecha}\n`;
+      }
+    });
+    alert(detalle);
+  } catch(e) { alert('Error al cargar detalle.'); }
+}
+
+async function borrarHistorial(id, mes) {
+  if(!confirm(`¿Eliminar definitivamente el registro archivado de ${mes}? Esta acción no se puede deshacer.`)) return;
+  try {
+    await sb.from('gomatex_cargas_historial').delete().eq('id',id);
+    renderHistorialCargas();
+  } catch(e) { alert('Error al eliminar: '+e.message); }
 }
 
 async function saveCargasManuales(){
