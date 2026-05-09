@@ -2432,21 +2432,32 @@ function renderFact(){
   const curSem=semSel.value;
   semSel.innerHTML='<option value="">Todas las semanas</option>'+sems.map(s=>`<option value="${s}"${s===curSem?' selected':''}>${s}</option>`).join('');
 
-  let list=[...DATA.clientes].sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
+  // Una FC "ya cobrada implícitamente" = su fecha estimada de cobro ya pasó y sigue PENDIENTE
+  // Estas se ocultan automáticamente de la vista principal (se asume que ya se cobró)
+  const yaVencioEstimado = f => {
+    if(f.estadoCobranza !== 'PENDIENTE') return false;
+    if(f.tipo !== 'Fc') return false;
+    const c = cobroEstimado(f);
+    return c && c < now;
+  };
+
+  let list=[...DATA.clientes]
+    .filter(f => !yaVencioEstimado(f)) // ocultar FC cuyo plazo estimado ya pasó
+    .sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
+
   if(tipo) list=list.filter(f=>f.tipo===tipo);
   if(est) list=list.filter(f=>f.estadoCobranza===est);
   if(sem) list=list.filter(f=>f.semCashFlow===sem);
   if(q) list=list.filter(f=>f.cliente.toLowerCase().includes(q)||f.numero.toLowerCase().includes(q));
 
-  // KPIs — usar montoEfectivo para respetar negativos y ajustes
+  // KPIs — FC pendientes = solo las que aún no vencieron su plazo estimado
   const pending=list.filter(f=>f.tipo==='Fc'&&f.estadoCobranza==='PENDIENTE');
   const cobradas=list.filter(f=>f.estadoCobranza==='COBRADO');
-  // Total cartera = TODOS los tipos sumados (FC suman, NC/RC negativos restan)
   const totalCartera = list.reduce((a,f)=>a+montoEfectivo(f),0);
   const totalPending  = pending.reduce((a,f)=>a+montoEfectivo(f),0);
   const totalCobradas = cobradas.reduce((a,f)=>a+montoEfectivo(f),0);
   document.getElementById('fact-kpis').innerHTML=`
-    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(totalPending)}</div><div class="kpi-sub">${pending.length} facturas</div></div>
+    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(totalPending)}</div><div class="kpi-sub">${pending.length} facturas a cobrar</div></div>
     <div class="kpi g"><div class="kpi-lbl">Cobradas</div><div class="kpi-val">${fmtM(totalCobradas)}</div><div class="kpi-sub">${cobradas.length} facturas</div></div>
     <div class="kpi ${totalCartera>=0?'':'r'}"><div class="kpi-lbl">Total neto</div><div class="kpi-val">${fmtM(totalCartera)}</div><div class="kpi-sub">FC + NC + RC + ajustes</div></div>
   `;
@@ -3147,7 +3158,8 @@ function getFlujoPeriod(start,end){
     if(f.tipo==='Rc') return false;
     const c=cobroEstimado(f);
     if(!c||isNaN(c)) return false;
-    if(c.getFullYear()===2024) return false; // omitir 2024
+    if(c.getFullYear()===2024) return false;
+    if(c<start && f.tipo==='Fc' && f.estadoCobranza==='PENDIENTE') return false; // ya venció — se asume cobrado
     return c>=start&&c<=end;
   });
   // Cheques recibidos: solo los que NO están entregados a terceros son ingreso nuestro.
