@@ -913,8 +913,16 @@ document.addEventListener('DOMContentLoaded', function(){
               onchange="mfeSyncFecha(this.value)">
           </div>
         </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+          <div class="fg" style="margin:0;flex:1">
+            <label style="font-size:11px;color:var(--gray-500);font-weight:600">SEM. CASH FLOW MANUAL <span style="font-weight:400;color:var(--gray-400)">(opcional — sobreescribe la semana calculada)</span></label>
+            <input type="text" id="mfe-sem-manual" placeholder="ej: 24_2026" style="margin-top:4px;font-family:monospace"
+              oninput="mfeSemManualChange(this.value)">
+          </div>
+          <button type="button" onclick="mfeLimpiarSemManual()" style="margin-top:18px;background:none;border:1px solid var(--gray-200);border-radius:var(--r-sm);padding:6px 10px;cursor:pointer;font-size:12px;color:var(--gray-500)">✕ Limpiar</button>
+        </div>
         <div style="margin-top:8px;font-size:11px;color:var(--blue)">
-          💡 Cambiá los días <em>o</em> la fecha — el otro se actualiza solo.
+          💡 Cambiá los días <em>o</em> la fecha — el otro se actualiza solo. Si el cliente paga antes o se atrasa, editá la Sem. Cash Flow directamente.
         </div>
         <div id="mfe-sem-preview" style="margin-top:8px;font-size:12px;font-weight:700;color:var(--blue)"></div>
       </div>
@@ -1117,6 +1125,10 @@ function montoEfectivo(f) {
 // 1. Fecha acordada manualmente (editada por usuario)
 // 2. Por defecto: fechaEmision + 37 días (o diasCobro si fue editado)
 function cobroEstimado(f) {
+  // Si hay semana manual explícita, calcular la fecha desde esa semana
+  if(f.semCashFlowManual && /^\d+_\d{4}$/.test(f.semCashFlowManual)) {
+    try { return weekStart(f.semCashFlowManual); } catch(e){}
+  }
   if(f.fechaCobroAcordada) return f.fechaCobroAcordada;
   if(f.fechaEmision) return addDays(f.fechaEmision, f.diasCobro !== undefined ? f.diasCobro : 37);
   return null;
@@ -2524,6 +2536,30 @@ function mfeUpdateSemPreview(fechaStr) {
   el.innerHTML = '📅 Impacta en flujo: <span class="badge b-blue">Semana '+wn+' / '+yr+'</span> · '+d.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 }
 
+function mfeSemManualChange(val) {
+  // Si escribe una semana manual, actualizar el preview con ese valor
+  const el = document.getElementById('mfe-sem-preview');
+  if(!el) return;
+  if(val && /^\d+_\d{4}$/.test(val.trim())) {
+    const [wn, yr] = val.trim().split('_');
+    el.innerHTML = `📅 Sem. Cash Flow: <span class="badge b-orange">Semana ${wn} / ${yr}</span> <span style="font-size:11px;color:var(--orange)">(manual — sobreescribe la fecha calculada)</span>`;
+  } else if(val) {
+    el.innerHTML = `<span style="color:var(--red);font-size:11px">Formato: 24_2026</span>`;
+  } else {
+    // Si limpia el campo manual, volver a mostrar la fecha calculada
+    const fechaEl = document.getElementById('mfe-fecha-estimada');
+    if(fechaEl && fechaEl.value) mfeUpdateSemPreview(fechaEl.value);
+    else el.innerHTML = '';
+  }
+}
+
+function mfeLimpiarSemManual() {
+  const el = document.getElementById('mfe-sem-manual');
+  if(el) el.value = '';
+  const fechaEl = document.getElementById('mfe-fecha-estimada');
+  if(fechaEl && fechaEl.value) mfeUpdateSemPreview(fechaEl.value);
+}
+
 function openFactEdit(id){
   if(!canWrite()) return;
   const f=DATA.clientes.find(x=>x.id===id); if(!f) return;
@@ -2546,6 +2582,13 @@ function openFactEdit(id){
   }
   document.getElementById('mfe-dias').value           = dias;
   document.getElementById('mfe-fecha-estimada').value = fechaEstimada;
+  // Sem manual: solo si hay un override previo diferente al calculado por fecha
+  const semManualEl = document.getElementById('mfe-sem-manual');
+  if(semManualEl) {
+    const semCalc = fechaEstimada ? weekKey(new Date(fechaEstimada+'T12:00:00')) : '';
+    // Mostrar sem manual solo si el semCashFlow guardado difiere de la calculada por fecha
+    semManualEl.value = (f.semCashFlow && f.semCashFlow !== semCalc) ? f.semCashFlow : '';
+  }
   // Estado de cobro
   const estEl = document.getElementById('mfe-est');
   if(estEl) estEl.value = f.estadoCobranza === 'COBRADO' ? 'COBRADO' : 'PENDIENTE';
@@ -2559,19 +2602,27 @@ function saveFactEdit(){
   const dias       = parseInt(document.getElementById('mfe-dias').value)||37;
   const estEl      = document.getElementById('mfe-est');
   const nuevoEst   = estEl ? estEl.value : 'PENDIENTE';
+  const semManual  = (document.getElementById('mfe-sem-manual')?.value||'').trim();
+
+  // Semana de impacto: usar la manual si está cargada y válida, sino calcular desde fecha
   let semCF = '';
-  if(nuevaFecha) {
+  if(semManual && /^\d+_\d{4}$/.test(semManual)) {
+    semCF = semManual; // override manual
+  } else if(nuevaFecha) {
     const d = new Date(nuevaFecha+'T12:00:00');
     if(!isNaN(d)) semCF = weekKey(d);
   }
-  DATA.localEdits[id] = { ...(DATA.localEdits[id]||{}), fechaCobro:nuevaFecha, semCashFlow:semCF, dias, estadoCobranza:nuevoEst };
+  DATA.localEdits[id] = { ...(DATA.localEdits[id]||{}), fechaCobro:nuevaFecha, semCashFlow:semCF, semCashFlowManual: semManual||null, dias, estadoCobranza:nuevoEst };
   const f = DATA.clientes.find(x=>x.id===id);
   if(f){
     f.diasCobro = dias;
-    f.estadoCobranza = nuevoEst; // PENDIENTE o COBRADO
-    if(nuevaFecha){
+    f.estadoCobranza = nuevoEst;
+    f.semCashFlow = semCF;
+    f.semCashFlowManual = semManual || null; // null = usar cálculo automático
+    if(nuevaFecha && !semManual){
       f.fechaCobroAcordada = new Date(nuevaFecha+'T12:00:00');
-      f.semCashFlow = semCF;
+    } else if(nuevaFecha) {
+      f.fechaCobroAcordada = new Date(nuevaFecha+'T12:00:00');
     }
   }
   closeM('modal-fact-edit');
