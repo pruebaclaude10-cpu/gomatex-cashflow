@@ -1130,8 +1130,19 @@ function cobroEstimado(f) {
     try { return weekStart(f.semCashFlowManual); } catch(e){}
   }
   if(f.fechaCobroAcordada) return f.fechaCobroAcordada;
-  if(f.fechaEmision) return addDays(f.fechaEmision, f.diasCobro !== undefined ? f.diasCobro : 37);
-  return null;
+
+  // Calcular fecha estimada base (emisión + días)
+  let fechaBase = null;
+  if(f.fechaEmision) fechaBase = addDays(f.fechaEmision, f.diasCobro !== undefined ? f.diasCobro : 37);
+  if(!fechaBase) return null;
+
+  // Si la fecha estimada ya pasó Y la factura sigue PENDIENTE,
+  // se mueve automáticamente al lunes de la semana actual
+  if(fechaBase < today() && (f.estadoCobranza === 'PENDIENTE' || !f.estadoCobranza)) {
+    return today(); // impacta en la semana actual
+  }
+
+  return fechaBase;
 }
 
 // ══════════════════════════════════════════════════════
@@ -2432,13 +2443,10 @@ function renderFact(){
   const curSem=semSel.value;
   semSel.innerHTML='<option value="">Todas las semanas</option>'+sems.map(s=>`<option value="${s}"${s===curSem?' selected':''}>${s}</option>`).join('');
 
-  // Ocultar CUALQUIER comprobante cuyo cobro estimado ya pasó (aunque sea 1 día)
-  // Se asume que si pasó la fecha, ya fue cobrado/resuelto
-  const yaVencioEstimado = f => {
-    if(f.estadoCobranza === 'COBRADO') return false; // ya marcado cobrado — no filtrar acá
-    const c = cobroEstimado(f);
-    return c && c < now;
-  };
+  // Si una factura llegó a su fecha estimada y NO fue marcada como COBRADA,
+  // se mueve automáticamente a la semana siguiente (y así sucesivamente)
+  // hasta que el usuario la marque como COBRADO manualmente.
+  const yaVencioEstimado = f => false; // ya no se ocultan — se pasan a semana siguiente
 
   let list=[...DATA.clientes]
     .filter(f => !yaVencioEstimado(f)) // ocultar FC cuyo plazo estimado ya pasó
