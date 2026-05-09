@@ -426,6 +426,11 @@ tbody tr:hover{background:var(--gray-50)}
         <div class="card">
           <div class="filters">
             <input type="text" id="cheq-emit-filter" placeholder="🔍 Buscar número, beneficiario..." oninput="renderChequesEmitidos()" style="min-width:240px">
+            <select id="cheq-emit-estado" onchange="renderChequesEmitidos()" style="font-size:13px;font-weight:700;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:var(--r-sm)">
+              <option value="pendientes">⏳ Solo pendientes</option>
+              <option value="todos">📋 Todos</option>
+              <option value="vencidos">🔴 Solo vencidos</option>
+            </select>
           </div>
           <div class="tbl-wrap">
             <table>
@@ -2599,30 +2604,46 @@ function switchCheqTab(tab, btn) {
 }
 
 function renderChequesEmitidos() {
-  const q = (document.getElementById('cheq-emit-filter')||{}).value||'';
-  const now = today();
+  const q      = (document.getElementById('cheq-emit-filter')||{}).value||'';
+  const estado = (document.getElementById('cheq-emit-estado')||{}).value||'pendientes';
+  const now    = today();
+
   const pendientes = DATA.chequesEmitidos.filter(c=>c.fechaVto&&c.fechaVto>=now);
+  const vencidos   = DATA.chequesEmitidos.filter(c=>c.fechaVto&&c.fechaVto<now);
   const totalPend  = pendientes.reduce((a,c)=>a+c.importe,0);
   const totalTotal = DATA.chequesEmitidos.reduce((a,c)=>a+c.importe,0);
+
   document.getElementById('cheq-emit-kpis').innerHTML=`
     <div class="kpi r"><div class="kpi-lbl">Pendientes</div><div class="kpi-val">${fmtM(totalPend)}</div><div class="kpi-sub">${pendientes.length} cheque/s a vencer</div></div>
     <div class="kpi"><div class="kpi-lbl">Total emitido</div><div class="kpi-val">${fmtM(totalTotal)}</div><div class="kpi-sub">${DATA.chequesEmitidos.length} cheques</div></div>
   `;
-  const filtrados = q
-    ? DATA.chequesEmitidos.filter(c=>[c.numero,c.beneficiario].join(' ').toLowerCase().includes(q.toLowerCase()))
-    : DATA.chequesEmitidos;
-  const sorted = [...filtrados].sort((a,b)=>(a.fechaVto||0)-(b.fechaVto||0));
+
+  // Filtrar por estado
+  let base = estado === 'pendientes' ? pendientes
+           : estado === 'vencidos'   ? vencidos
+           : DATA.chequesEmitidos;
+
+  // Filtrar por búsqueda
+  if(q) base = base.filter(c=>[c.numero,c.beneficiario].join(' ').toLowerCase().includes(q.toLowerCase()));
+
+  const sorted = [...base].sort((a,b)=>(a.fechaVto||0)-(b.fechaVto||0));
+
   document.getElementById('cheq-emit-body').innerHTML = sorted.map(c=>{
     const vencido = c.fechaVto && c.fechaVto < now;
-    return `<tr${vencido?' style="background:var(--red-light)"':''}>
+    const proximo = !vencido && c.fechaVto && (c.fechaVto - now) < 7*86400000;
+    const rowBg   = vencido ? 'style="background:var(--red-light)"'
+                  : proximo ? 'style="background:var(--orange-light)"' : '';
+    const badge   = vencido ? '<span class="badge b-red" style="margin-left:6px;font-size:10px">Vencido</span>'
+                  : proximo ? '<span class="badge b-orange" style="margin-left:6px;font-size:10px">Próximo</span>' : '';
+    return `<tr ${rowBg}>
       <td>${fmtDate(c.fechaEmision)}</td>
-      <td>${fmtDate(c.fechaVto)}${vencido?'<span class="badge b-red" style="margin-left:6px;font-size:10px">Vencido</span>':''}</td>
+      <td>${fmtDate(c.fechaVto)}${badge}</td>
       <td class="font-mono"><strong>${c.numero||'-'}</strong></td>
       <td>${c.beneficiario||'-'}</td>
       <td class="tr font-bold text-red">${fmtM(c.importe)}</td>
       <td></td>
     </tr>`;
-  }).join('')||`<tr><td colspan="6"><div class="empty-st"><div class="ico">💸</div><p>Sin cheques emitidos${q?' para "'+q+'"':''}</p></div></td></tr>`;
+  }).join('')||`<tr><td colspan="6"><div class="empty-st"><div class="ico">💸</div><p>Sin cheques ${estado==='pendientes'?'pendientes':estado==='vencidos'?'vencidos':'emitidos'}${q?' para "'+q+'"':''}</p></div></td></tr>`;
 }
 
 function openChequesEmitidoModal() {
