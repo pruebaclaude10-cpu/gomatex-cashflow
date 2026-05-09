@@ -1125,21 +1125,24 @@ function montoEfectivo(f) {
 // 1. Fecha acordada manualmente (editada por usuario)
 // 2. Por defecto: fechaEmision + 37 días (o diasCobro si fue editado)
 function cobroEstimado(f) {
-  // Si hay semana manual explícita, calcular la fecha desde esa semana
+  // Si hay semana manual explícita, usar esa semana
   if(f.semCashFlowManual && /^\d+_\d{4}$/.test(f.semCashFlowManual)) {
     try { return weekStart(f.semCashFlowManual); } catch(e){}
   }
   if(f.fechaCobroAcordada) return f.fechaCobroAcordada;
+  if(!f.fechaEmision) return null;
 
-  // Calcular fecha estimada base (emisión + días)
-  let fechaBase = null;
-  if(f.fechaEmision) fechaBase = addDays(f.fechaEmision, f.diasCobro !== undefined ? f.diasCobro : 37);
-  if(!fechaBase) return null;
+  // Fecha estimada base = emisión + 37 días (o días editados manualmente)
+  let fechaBase = addDays(f.fechaEmision, f.diasCobro !== undefined ? f.diasCobro : 37);
 
-  // Si la fecha estimada ya pasó Y la factura sigue PENDIENTE,
-  // se mueve automáticamente al lunes de la semana actual
-  if(fechaBase < today() && (f.estadoCobranza === 'PENDIENTE' || !f.estadoCobranza)) {
-    return today(); // impacta en la semana actual
+  // Si la fecha ya pasó y la factura sigue PENDIENTE,
+  // moverla a la semana siguiente sumando 7 días sucesivos
+  // hasta llegar a una semana futura o igual a hoy.
+  if(f.estadoCobranza === 'PENDIENTE' || !f.estadoCobranza) {
+    const hoy = today();
+    while(fechaBase < hoy) {
+      fechaBase = addDays(fechaBase, 7);
+    }
   }
 
   return fechaBase;
@@ -2443,28 +2446,21 @@ function renderFact(){
   const curSem=semSel.value;
   semSel.innerHTML='<option value="">Todas las semanas</option>'+sems.map(s=>`<option value="${s}"${s===curSem?' selected':''}>${s}</option>`).join('');
 
-  // Si una factura llegó a su fecha estimada y NO fue marcada como COBRADA,
-  // se mueve automáticamente a la semana siguiente (y así sucesivamente)
-  // hasta que el usuario la marque como COBRADO manualmente.
-  const yaVencioEstimado = f => false; // ya no se ocultan — se pasan a semana siguiente
-
-  let list=[...DATA.clientes]
-    .filter(f => !yaVencioEstimado(f)) // ocultar FC cuyo plazo estimado ya pasó
-    .sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
-
+  let list=[...DATA.clientes].sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
   if(tipo) list=list.filter(f=>f.tipo===tipo);
   if(est) list=list.filter(f=>f.estadoCobranza===est);
   if(sem) list=list.filter(f=>f.semCashFlow===sem);
   if(q) list=list.filter(f=>f.cliente.toLowerCase().includes(q)||f.numero.toLowerCase().includes(q));
 
-  // KPIs — FC pendientes = solo las que aún no vencieron su plazo estimado
+  // KPIs — usar montoEfectivo para respetar negativos y ajustes
   const pending=list.filter(f=>f.tipo==='Fc'&&f.estadoCobranza==='PENDIENTE');
   const cobradas=list.filter(f=>f.estadoCobranza==='COBRADO');
+  // Total cartera = TODOS los tipos sumados (FC suman, NC/RC negativos restan)
   const totalCartera = list.reduce((a,f)=>a+montoEfectivo(f),0);
   const totalPending  = pending.reduce((a,f)=>a+montoEfectivo(f),0);
   const totalCobradas = cobradas.reduce((a,f)=>a+montoEfectivo(f),0);
   document.getElementById('fact-kpis').innerHTML=`
-    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(totalPending)}</div><div class="kpi-sub">${pending.length} facturas a cobrar</div></div>
+    <div class="kpi o"><div class="kpi-lbl">FC Pendientes</div><div class="kpi-val">${fmtM(totalPending)}</div><div class="kpi-sub">${pending.length} facturas</div></div>
     <div class="kpi g"><div class="kpi-lbl">Cobradas</div><div class="kpi-val">${fmtM(totalCobradas)}</div><div class="kpi-sub">${cobradas.length} facturas</div></div>
     <div class="kpi ${totalCartera>=0?'':'r'}"><div class="kpi-lbl">Total neto</div><div class="kpi-val">${fmtM(totalCartera)}</div><div class="kpi-sub">FC + NC + RC + ajustes</div></div>
   `;
@@ -3165,8 +3161,7 @@ function getFlujoPeriod(start,end){
     if(f.tipo==='Rc') return false;
     const c=cobroEstimado(f);
     if(!c||isNaN(c)) return false;
-    if(c.getFullYear()===2024) return false;
-    if(c<start && f.tipo==='Fc' && f.estadoCobranza==='PENDIENTE') return false; // ya venció — se asume cobrado
+    if(c.getFullYear()===2024) return false; // omitir 2024
     return c>=start&&c<=end;
   });
   // Cheques recibidos: solo los que NO están entregados a terceros son ingreso nuestro.
