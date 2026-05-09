@@ -2082,6 +2082,7 @@ function _startSession(user) {
       await Promise.all([
         loadBancosManual(),
         loadFacturasCloud(),
+        loadCargasManuales(),
       ]);
       msgEl.textContent = 'Conectando con Google Sheets...';
       return syncAll();
@@ -3660,7 +3661,7 @@ function actualizarTotalCargas() {
   `;
 }
 
-function guardarCargas() {
+async function guardarCargas() {
   const mes=document.getElementById('cargas-mes')?.value||getMesActual();
   const datos={};
   CARGAS_ITEMS.forEach(i=>{
@@ -3686,8 +3687,25 @@ function limpiarCargas() {
   renderInicio();
 }
 
-function saveCargasManuales(){try{localStorage.setItem('gomatex_cargas',JSON.stringify(DATA.cargasManuales));}catch(e){}}
-function loadCargasManuales(){try{const s=localStorage.getItem('gomatex_cargas');if(s)DATA.cargasManuales=JSON.parse(s);}catch(e){}}
+async function saveCargasManuales(){
+  try{localStorage.setItem('gomatex_cargas',JSON.stringify(DATA.cargasManuales));}catch(e){}
+  try{
+    await sb.from('gomatex_cargas').upsert([
+      {key:'cargasManuales', value:JSON.stringify(DATA.cargasManuales), updated_at:new Date().toISOString()}
+    ],{onConflict:'key'});
+  }catch(e){ syncLog('⚠️ No se pudo guardar cargas en la nube: '+e.message,'warn'); }
+}
+async function loadCargasManuales(){
+  try{
+    const {data,error}=await sb.from('gomatex_cargas').select('value').eq('key','cargasManuales').single();
+    if(!error&&data&&data.value){
+      DATA.cargasManuales=JSON.parse(data.value);
+      try{localStorage.setItem('gomatex_cargas',data.value);}catch(e){}
+      return;
+    }
+  }catch(e){}
+  try{const s=localStorage.getItem('gomatex_cargas');if(s)DATA.cargasManuales=JSON.parse(s);}catch(e){}
+}
 
 function renderCargasHistorico() {
   const meses=Object.keys(DATA.cargasManuales).sort().reverse().slice(0,12);
