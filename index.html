@@ -2156,8 +2156,8 @@ sb.auth.onAuthStateChange((event, session) => {
 
 document.getElementById('inp-p').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
-function canWrite(){return SESSION&&SESSION.rol!=='readonly';}
-function canDel(){return SESSION&&SESSION.rol==='admin';}
+function canWrite(){return SESSION!=null;} // cualquier usuario logueado puede editar
+function canDel(){return SESSION&&(SESSION.rol==='admin'||SESSION.rol==='standard');}
 
 // ══════════════════════════════════════════════════════
 //  SIDEBAR / NAV
