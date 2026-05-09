@@ -3439,6 +3439,7 @@ function calcularViabilidad(){
 
 const CARGAS_ITEMS = [
   { key:'sueldos',    label:'👥 Sueldos',                        tipo:'egreso' },
+  { key:'sueldoSR',   label:'👥 Sueldo sin recibo',              tipo:'egreso' },
   { key:'ib1',        label:'🏛️ Ingresos Brutos — Suc. 1',       tipo:'egreso' },
   { key:'ib2',        label:'🏛️ Ingresos Brutos — Suc. 2',       tipo:'egreso' },
   { key:'hab1',       label:'📋 Habilitación Comercial — Suc. 1', tipo:'egreso' },
@@ -3447,6 +3448,9 @@ const CARGAS_ITEMS = [
   { key:'sindicales', label:'🤝 Boletas Sindicales',              tipo:'egreso' },
   { key:'galicia',    label:'💳 Tarjeta Galicia',                 tipo:'egreso' },
   { key:'patagonia',  label:'💳 Tarjeta Patagonia 365',           tipo:'egreso' },
+  { key:'luz',        label:'💡 Luz',                             tipo:'egreso' },
+  { key:'afipPlanes', label:'🏦 Planes de Pago AFIP',            tipo:'egreso' },
+  { key:'creditoChubut', label:'🏦 Créditos Banco Chubut',       tipo:'egreso' },
 ];
 
 function getMesActual() {
