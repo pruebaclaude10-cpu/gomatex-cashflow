@@ -2440,17 +2440,26 @@ function renderFact(){
   const q=document.getElementById('ff-q').value.toLowerCase();
   const now=today();
 
-  // Build semana filter options
-  const sems=[...new Set(DATA.clientes.map(f=>f.semCashFlow).filter(Boolean))].sort();
-  const semSel=document.getElementById('ff-sem');
-  const curSem=semSel.value;
-  semSel.innerHTML='<option value="">Todas las semanas</option>'+sems.map(s=>`<option value="${s}"${s===curSem?' selected':''}>${s}</option>`).join('');
+  // Build semana filter — usar weekKey(cobroEstimado()) para reflejar roll-over real
+  const semsCalculadas = [...new Set(
+    DATA.clientes
+      .map(f => { const c = cobroEstimado(f); return c ? weekKey(c) : null; })
+      .filter(Boolean)
+  )].sort();
+  const semSel = document.getElementById('ff-sem');
+  const curSem = semSel.value;
+  semSel.innerHTML = '<option value="">Todas las semanas</option>' +
+    semsCalculadas.map(s => {
+      const [wn, yr] = s.split('_');
+      return `<option value="${s}"${s===curSem?' selected':''}>Sem ${wn} / ${yr}</option>`;
+    }).join('');
 
-  let list=[...DATA.clientes].sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
-  if(tipo) list=list.filter(f=>f.tipo===tipo);
-  if(est) list=list.filter(f=>f.estadoCobranza===est);
-  if(sem) list=list.filter(f=>f.semCashFlow===sem);
-  if(q) list=list.filter(f=>f.cliente.toLowerCase().includes(q)||f.numero.toLowerCase().includes(q));
+  let list = [...DATA.clientes].sort((a,b)=>(cobroEstimado(a)||0)-(cobroEstimado(b)||0));
+  if(tipo) list = list.filter(f=>f.tipo===tipo);
+  if(est)  list = list.filter(f=>f.estadoCobranza===est);
+  // Filtrar por semana usando cobroEstimado dinámico
+  if(sem)  list = list.filter(f=>{ const c=cobroEstimado(f); return c && weekKey(c)===sem; });
+  if(q)    list = list.filter(f=>f.cliente.toLowerCase().includes(q)||f.numero.toLowerCase().includes(q));
 
   // KPIs — usar montoEfectivo para respetar negativos y ajustes
   const pending=list.filter(f=>f.tipo==='Fc'&&f.estadoCobranza==='PENDIENTE');
